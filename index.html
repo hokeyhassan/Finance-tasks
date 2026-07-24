@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Team Tasks</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg:#f4f6fa;--card:#fff;--ink:#16213e;--muted:#7a839b;--accent:#0f3460;--accent2:#3b82f6;--ok:#27ae60;--warn:#f6b93b;--bad:#e74c3c;--wa:#25d366;--line:#e4e8f0}
+:root{--bg:#f4f6fa;--card:#fff;--ink:#16213e;--muted:#7a839b;--accent:#0f3460;--accent2:#3b82f6;--ok:#27ae60;--warn:#f6b93b;--bad:#e74c3c;--rev:#9b59b6;--wa:#25d366;--line:#e4e8f0}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
 header{background:var(--accent);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -18,7 +19,7 @@ header h1{font-size:18px;margin-inline-end:auto}
 nav{display:flex;gap:4px;background:var(--card);padding:6px 12px;border-bottom:1px solid var(--line);overflow-x:auto}
 nav button{border:none;background:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted);white-space:nowrap}
 nav button.active{background:var(--accent);color:#fff}
-main{padding:16px;max-width:1200px;margin:0 auto}
+main{padding:16px;max-width:1300px;margin:0 auto}
 .grid{display:grid;gap:12px}
 .cards4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
@@ -26,22 +27,28 @@ main{padding:16px;max-width:1200px;margin:0 auto}
 .muted{color:var(--muted);font-size:13px}
 .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
 .bar i{display:block;height:100%;background:var(--ok)}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:start}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;align-items:start}
 .col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:200px}
 .col h3{font-size:14px;padding:4px 6px;display:flex;justify-content:space-between}
+.col[data-status="review"] h3 span:first-child{color:var(--rev)}
 .task{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fff;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .task b{display:block;font-size:14px;margin-bottom:4px}
 .task .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
 .task.overdue{border-inline-start:4px solid var(--bad)}
+.task.returned{border-inline-start:4px solid var(--warn)}
 .task .actions{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
 .task .actions button,.task .actions a{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 8px;cursor:pointer;text-decoration:none;color:var(--ink)}
+.task .actions .ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.task .actions .warn{background:var(--warn);color:#fff;border-color:var(--warn)}
 .wa{background:var(--wa)!important;color:#fff!important;border-color:var(--wa)!important}
 .ptag{background:#eef3fb;color:var(--accent2);border-radius:4px;padding:1px 6px;font-size:11px}
+.rtag{background:#f5eefb;color:var(--rev);border-radius:4px;padding:1px 6px;font-size:11px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 .toolbar input,.toolbar select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
 .btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:14px}
 .btn.gray{background:var(--muted)}
 .btn.red{background:var(--bad)}
+.btn.green{background:var(--ok)}
 .btn.sm{padding:5px 10px;font-size:12px}
 table.cal{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden}
 table.cal th{padding:8px;background:var(--accent);color:#fff;font-size:12px}
@@ -58,20 +65,25 @@ table.cal td.today{background:#e8f0fe}
 .feed .muted{font-size:11px}
 .overlay{position:fixed;inset:0;background:rgba(22,33,62,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .overlay.show{display:flex}
-.modal{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:440px;max-height:92vh;overflow:auto}
+.modal{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:460px;max-height:92vh;overflow:auto}
 .modal h2{font-size:17px;margin-bottom:12px}
 .modal label{font-size:13px;color:var(--muted);display:block;margin:10px 0 4px}
 .modal input,.modal select,.modal textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
 .modal .row{display:flex;gap:10px}.modal .row>div{flex:1}
-.modal .foot{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal .foot{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap}
 .modal .note{background:#fff8e1;border-radius:8px;padding:10px;font-size:12px;margin-top:10px;color:#7a6520}
+.modal .err{background:#fdecea;border-radius:8px;padding:10px;font-size:12px;margin-top:10px;color:var(--bad);display:none}
 .checkitem{display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px}
 .checkitem input{width:auto}
-.namebtn{display:block;width:100%;text-align:start;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;margin:6px 0;font-size:14px}
-.namebtn:hover{background:#eef3fb}
 .projcard{margin-bottom:12px}
 .projcard .chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 .projcard .chips span{background:#eef3fb;border-radius:12px;padding:3px 10px;font-size:12px}
+.comment{background:#f7f8fb;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px}
+.comment .muted{font-size:11px}
+.attach{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:5px 0;font-size:13px}
+.attach a{color:var(--accent2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+#authBox{max-width:380px}
+#authBox .logo{font-size:34px;text-align:center;margin-bottom:6px}
 @media(max-width:640px){header h1{font-size:15px}main{padding:10px}}
 </style>
 </head>
@@ -114,6 +126,7 @@ table.cal td.today{background:#e8f0fe}
     <div class="cols">
       <div class="col" data-status="todo"><h3><span data-i="todo"></span><span class="muted" id="cnt-todo"></span></h3><div class="drop" id="list-todo"></div></div>
       <div class="col" data-status="inprogress"><h3><span data-i="inprogress"></span><span class="muted" id="cnt-inprogress"></span></h3><div class="drop" id="list-inprogress"></div></div>
+      <div class="col" data-status="review"><h3><span data-i="review"></span><span class="muted" id="cnt-review"></span></h3><div class="drop" id="list-review"></div></div>
       <div class="col" data-status="done"><h3><span data-i="done"></span><span class="muted" id="cnt-done"></span></h3><div class="drop" id="list-done"></div></div>
     </div>
   </div>
@@ -131,11 +144,8 @@ table.cal td.today{background:#e8f0fe}
     <p class="muted" style="margin-top:8px" data-i="calHint"></p>
   </div>
   <div id="view-team" style="display:none">
-    <div class="toolbar">
-      <input id="newMember" style="flex:1;min-width:140px">
-      <button class="btn" id="addMemberBtn"></button>
-    </div>
     <div class="card" id="memberList"></div>
+    <p class="muted" style="margin-top:8px" data-i="teamHint"></p>
   </div>
   <div id="view-activity" style="display:none">
     <div class="card" id="feedList"></div>
@@ -157,7 +167,24 @@ table.cal td.today{background:#e8f0fe}
       <div><label data-i="dueTime"></label><input type="time" id="f_time"></div>
     </div>
     <label data-i="status"></label>
-    <select id="f_status"><option value="todo"></option><option value="inprogress"></option><option value="done"></option></select>
+    <select id="f_status"><option value="todo"></option><option value="inprogress"></option><option value="review"></option><option value="done"></option></select>
+    <div id="taskExtras" style="display:none">
+      <label data-i="attachments"></label>
+      <div id="attachList"></div>
+      <div class="row" style="align-items:center">
+        <div><input type="file" id="f_file" style="font-size:12px"></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div><input id="f_link" placeholder="https://drive.google.com/..."></div>
+        <div style="flex:0"><button class="btn sm" id="addLinkBtn"></button></div>
+      </div>
+      <label data-i="comments"></label>
+      <div id="commentList"></div>
+      <div class="row" style="margin-top:6px">
+        <div><input id="f_comment"></div>
+        <div style="flex:0"><button class="btn sm" id="addCommentBtn"></button></div>
+      </div>
+    </div>
     <div class="foot">
       <button class="btn red" id="delTaskBtn" style="display:none"></button>
       <button class="btn gray" id="cancelTaskBtn"></button>
@@ -190,7 +217,8 @@ table.cal td.today{background:#e8f0fe}
     <label data-i="memberWhatsapp"></label><input id="m_wa" placeholder="+201001234567">
     <label data-i="role"></label>
     <select id="m_role"><option value="member"></option><option value="manager"></option><option value="head"></option></select>
-    <div id="m_teamWrap" style="display:none"><label data-i="mTeam"></label><div id="m_team"></div></div>
+    <label data-i="managerL"></label>
+    <select id="m_manager"></select>
     <div class="foot">
       <button class="btn gray" id="cancelMemBtn"></button>
       <button class="btn" id="saveMemBtn"></button>
@@ -215,14 +243,23 @@ table.cal td.today{background:#e8f0fe}
   </div>
 </div>
 
-<!-- Name picker -->
-<div class="overlay" id="nameOverlay">
-  <div class="modal">
-    <h2 data-i="whoAreYou"></h2>
-    <div id="nameList"></div>
-    <label data-i="orNewName"></label>
-    <div class="row"><div><input id="newName"></div></div>
-    <div class="foot"><button class="btn" id="newNameBtn"></button></div>
+<!-- Auth -->
+<div class="overlay" id="authOverlay">
+  <div class="modal" id="authBox">
+    <div class="logo">🗂️</div>
+    <h2 style="text-align:center" data-i="appTitle"></h2>
+    <div id="a_nameWrap" style="display:none"><label data-i="yourName"></label><input id="a_name"></div>
+    <label data-i="emailL"></label><input id="a_email" type="email" autocomplete="username">
+    <label data-i="passwordL"></label><input id="a_pass" type="password" autocomplete="current-password">
+    <div class="err" id="a_err"></div>
+    <div class="foot" style="justify-content:space-between;align-items:center">
+      <a href="#" id="a_forgot" style="font-size:12px;color:var(--accent2)"></a>
+      <span style="display:flex;gap:8px">
+        <button class="btn gray" id="a_toggle"></button>
+        <button class="btn" id="a_go"></button>
+      </span>
+    </div>
+    <div class="note" data-i="authNote"></div>
   </div>
 </div>
 
@@ -237,56 +274,69 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 
 const I18N = {
 en:{appTitle:"Team Tasks",dashboard:"Dashboard",board:"Task Board",projects:"Projects",calendar:"Calendar",team:"Team",activity:"Activity",
 total:"Total tasks",open:"Open",overdueN:"Overdue",doneN:"Done",teamProgress:"Team progress",upcoming:"Next 7 days",
-todo:"To Do",inprogress:"In Progress",done:"Done",addTask:"+ Add task",search:"Search...",all:"Everyone",allProjects:"All projects",myTasks:"My tasks only",
+todo:"To Do",inprogress:"In Progress",review:"In Review",done:"Done",addTask:"+ Add task",search:"Search...",all:"Everyone",allProjects:"All projects",myTasks:"My tasks only",
 taskTitle:"Title",taskDesc:"Details (optional)",assignee:"Assigned to",project:"Project",noProject:"— No project —",dueDate:"Due date",dueTime:"Time",status:"Status",
 save:"Save",cancel:"Cancel",delete:"Delete",newTask:"New task",editTask:"Edit task",
 addProject:"+ Add project",projectName:"Project name",projectMembers:"Project members",newProject:"New project",editProject:"Edit project",tasksN:"tasks",
-whoAreYou:"Who are you?",orNewName:"Or add your name:",joinBtn:"Join",
-addMember:"Add",memberPh:"New member name...",removeM:"Remove",completion:"completion",edit:"Edit",
-memberName:"Name",memberEmail:"Email (for daily digest)",memberWhatsapp:"WhatsApp number (with country code)",editMember:"Member details",
-role:"Role",roleHead:"Head — sees everything",roleManager:"Manager — sees his team",roleMember:"Member — sees own tasks only",mTeam:"Manager's team",
+addMember:"Add",removeM:"Remove",completion:"completion",edit:"Edit",
+memberName:"Name",memberEmail:"Email",memberWhatsapp:"WhatsApp number (with country code)",editMember:"Member details",
+role:"Role",roleHead:"Head — sees everything",roleManager:"Manager — sees his team",roleMember:"Member — sees own tasks only",
+managerL:"Direct manager",noManager:"— None —",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
 emailSettings:"Daily email digest (EmailJS)",
-emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Create a free account at emailjs.com, connect Gmail, make a template with variables {{to_name}}, {{message}} (To Email: {{to_email}}), then paste the 3 keys below. Saved once for the whole team.",
+emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Emails are sent when the first member opens the app that day.",
 digestOn:"Enable daily digest",
-emailNote:"Emails are sent when the first team member opens the app each day (the app must be opened by someone for that day's emails to go out).",
+emailNote:"Emails are sent when the first team member opens the app each day.",
 notifOn:"🔔 On",notifOff:"🔕 Notifications",export:"⬇ Backup",import:"⬆ Restore",
 calHint:"Click any day to add a task.",noTasks:"Nothing here",
-nAssigned:"New task for you",nDone:"completed",nDue:"is due soon!",nOverdue:"is overdue!",
+nAssigned:"New task for you",nDone:"approved your task",nDue:"is due soon!",nOverdue:"is overdue!",nReturned:"Task returned for amendment",nReview:"Task submitted for your review",
 confirmDelM:"Remove this member?",confirmDelT:"Delete this task?",confirmDelP:"Delete this project? (its tasks stay, unassigned from it)",
-actCreated:"created",actMoved:"moved",actDeleted:"deleted",actJoined:"joined the team",actRemoved:"removed member",actProj:"created project",to:"to",
-waText:"Reminder about your task"},
+actCreated:"created",actMoved:"moved",actDeleted:"deleted",actRemoved:"removed member",actProj:"created project",actApproved:"approved",actReturned:"returned for amendment",actSubmitted:"submitted for review",to:"to",
+waText:"Reminder about your task",
+approve:"✔ Approve",returnT:"↩ Return",submitDone:"➜ Submit as done",waiting:"Waiting for review by",returnedTag:"Returned",approvedByL:"Approved by",
+comments:"Comments",addC:"Send",attachments:"Attachments (files up to 700KB, or links)",addL:"Add link",fileTooBig:"File too large — max 700KB. Use a link (Google Drive) for big files.",
+amendReason:"Amendment note (what should change?):",
+emailL:"Email",passwordL:"Password",yourName:"Your full name",login:"Sign in",signup:"Create account",haveAcc:"I have an account",noAcc:"New? Create account",forgot:"Forgot password?",signout:"Sign out",
+authNote:"Your team's data is private — only signed-in members can access it. New accounts start as 'Member' until the Head assigns a role.",
+resetSent:"Password reset email sent — check your inbox."},
 ar:{appTitle:"مهام الفريق",dashboard:"اللوحة الرئيسية",board:"لوحة المهام",projects:"المشاريع",calendar:"التقويم",team:"الفريق",activity:"النشاط",
 total:"إجمالي المهام",open:"مفتوحة",overdueN:"متأخرة",doneN:"منجزة",teamProgress:"تقدم الفريق",upcoming:"الأيام السبعة القادمة",
-todo:"للتنفيذ",inprogress:"قيد التنفيذ",done:"تم",addTask:"+ مهمة جديدة",search:"بحث...",all:"الجميع",allProjects:"كل المشاريع",myTasks:"مهامي فقط",
+todo:"للتنفيذ",inprogress:"قيد التنفيذ",review:"قيد المراجعة",done:"تم",addTask:"+ مهمة جديدة",search:"بحث...",all:"الجميع",allProjects:"كل المشاريع",myTasks:"مهامي فقط",
 taskTitle:"العنوان",taskDesc:"تفاصيل (اختياري)",assignee:"مسندة إلى",project:"المشروع",noProject:"— بدون مشروع —",dueDate:"تاريخ الاستحقاق",dueTime:"الوقت",status:"الحالة",
 save:"حفظ",cancel:"إلغاء",delete:"حذف",newTask:"مهمة جديدة",editTask:"تعديل المهمة",
 addProject:"+ مشروع جديد",projectName:"اسم المشروع",projectMembers:"أعضاء المشروع",newProject:"مشروع جديد",editProject:"تعديل المشروع",tasksN:"مهام",
-whoAreYou:"من أنت؟",orNewName:"أو أضف اسمك:",joinBtn:"انضمام",
-addMember:"إضافة",memberPh:"اسم عضو جديد...",removeM:"إزالة",completion:"إنجاز",edit:"تعديل",
-memberName:"الاسم",memberEmail:"البريد الإلكتروني (للملخص اليومي)",memberWhatsapp:"رقم واتساب (مع كود الدولة)",editMember:"بيانات العضو",
-role:"الصلاحية",roleHead:"رئيس — يرى كل شيء",roleManager:"مدير — يرى فريقه فقط",roleMember:"عضو — يرى مهامه فقط",mTeam:"فريق المدير",
+addMember:"إضافة",removeM:"إزالة",completion:"إنجاز",edit:"تعديل",
+memberName:"الاسم",memberEmail:"البريد الإلكتروني",memberWhatsapp:"رقم واتساب (مع كود الدولة)",editMember:"بيانات العضو",
+role:"الصلاحية",roleHead:"رئيس — يرى كل شيء",roleManager:"مدير — يرى فريقه",roleMember:"عضو — يرى مهامه فقط",
+managerL:"المدير المباشر",noManager:"— لا يوجد —",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
 emailSettings:"الملخص اليومي بالبريد (EmailJS)",
-emailInfo:"كل صباح، يصل لكل عضو له بريد إلكتروني قائمة بمهامه غير المنجزة. أنشئ حسابًا مجانيًا على emailjs.com، اربط Gmail، أنشئ قالبًا فيه {{to_name}} و{{message}} (والمرسل إليه {{to_email}})، ثم الصق المفاتيح الثلاثة أدناه. تُحفظ مرة واحدة للفريق كله.",
+emailInfo:"كل صباح، يصل لكل عضو له بريد قائمة بمهامه غير المنجزة. تُرسل عندما يفتح أول عضو التطبيق ذلك اليوم.",
 digestOn:"تفعيل الملخص اليومي",
-emailNote:"تُرسل الرسائل عندما يفتح أول عضو التطبيق كل يوم (يجب أن يفتح أحد التطبيق لكي تُرسل رسائل ذلك اليوم).",
+emailNote:"تُرسل الرسائل عندما يفتح أول عضو التطبيق كل يوم.",
 notifOn:"🔔 مفعلة",notifOff:"🔕 التنبيهات",export:"⬇ نسخة احتياطية",import:"⬆ استعادة",
 calHint:"اضغط على أي يوم لإضافة مهمة.",noTasks:"لا يوجد شيء",
-nAssigned:"مهمة جديدة لك",nDone:"أنجز",nDue:"موعدها اقترب!",nOverdue:"متأخرة!",
+nAssigned:"مهمة جديدة لك",nDone:"اعتمد مهمتك",nDue:"موعدها اقترب!",nOverdue:"متأخرة!",nReturned:"أُعيدت المهمة للتعديل",nReview:"مهمة بانتظار مراجعتك",
 confirmDelM:"إزالة هذا العضو؟",confirmDelT:"حذف هذه المهمة؟",confirmDelP:"حذف هذا المشروع؟ (تبقى مهامه بدون مشروع)",
-actCreated:"أنشأ",actMoved:"نقل",actDeleted:"حذف",actJoined:"انضم إلى الفريق",actRemoved:"أزال العضو",actProj:"أنشأ مشروع",to:"إلى",
-waText:"تذكير بمهمتك"}};
+actCreated:"أنشأ",actMoved:"نقل",actDeleted:"حذف",actRemoved:"أزال العضو",actProj:"أنشأ مشروع",actApproved:"اعتمد",actReturned:"أعاد للتعديل",actSubmitted:"قدّم للمراجعة",to:"إلى",
+waText:"تذكير بمهمتك",
+approve:"✔ اعتماد",returnT:"↩ إعادة",submitDone:"➜ تقديم كمنجزة",waiting:"بانتظار مراجعة",returnedTag:"معادة",approvedByL:"اعتمدها",
+comments:"التعليقات",addC:"إرسال",attachments:"المرفقات (ملفات حتى 700 كيلوبايت أو روابط)",addL:"إضافة رابط",fileTooBig:"الملف كبير — الحد 700 كيلوبايت. استخدم رابط (Google Drive) للملفات الكبيرة.",
+amendReason:"ملاحظة التعديل (ما المطلوب تغييره؟):",
+emailL:"البريد الإلكتروني",passwordL:"كلمة المرور",yourName:"اسمك الكامل",login:"دخول",signup:"إنشاء حساب",haveAcc:"لدي حساب",noAcc:"جديد؟ أنشئ حسابًا",forgot:"نسيت كلمة المرور؟",signout:"خروج",
+authNote:"بيانات فريقك خاصة — الأعضاء المسجلون فقط يمكنهم الوصول. الحسابات الجديدة تبدأ كـ'عضو' حتى يحدد الرئيس الصلاحية.",
+resetSent:"أُرسل بريد إعادة تعيين كلمة المرور — راجع بريدك."}};
 let lang = localStorage.getItem("tt_lang") || "en";
 const t = k => (I18N[lang][k] !== undefined ? I18N[lang][k] : k);
 
-let me = localStorage.getItem("tt_me") || null;
+let authedEmail = null, me = null, signupName = null, signupMode = false;
 let tasks = [], members = [], projects = [], feed = [];
 let editingId = null, editingProjId = null, editingMemId = null, calDate = new Date(), firstTasksLoad = true;
+let dataStarted = false, digestTried = false;
 const notified = new Set();
-let digestTried = false;
 
 const $ = id => document.getElementById(id);
 
@@ -299,8 +349,6 @@ function applyLang(){
   $("addTaskBtn").textContent = t("addTask");
   $("addProjBtn").textContent = t("addProject");
   $("searchBox").placeholder = t("search");
-  $("newMember").placeholder = t("memberPh");
-  $("addMemberBtn").textContent = t("addMember");
   $("saveTaskBtn").textContent = t("save");
   $("cancelTaskBtn").textContent = t("cancel");
   $("delTaskBtn").textContent = t("delete");
@@ -311,51 +359,113 @@ function applyLang(){
   $("cancelMemBtn").textContent = t("cancel");
   $("saveEmailBtn").textContent = t("save");
   $("cancelEmailBtn").textContent = t("cancel");
-  $("newNameBtn").textContent = t("joinBtn");
   $("exportBtn").textContent = t("export");
   $("importBtn").textContent = t("import");
+  $("addCommentBtn").textContent = t("addC");
+  $("addLinkBtn").textContent = t("addL");
+  $("a_forgot").textContent = t("forgot");
+  $("a_toggle").textContent = signupMode ? t("haveAcc") : t("noAcc");
+  $("a_go").textContent = signupMode ? t("signup") : t("login");
   const st = $("f_status").options;
-  st[0].text = t("todo"); st[1].text = t("inprogress"); st[2].text = t("done");
+  st[0].text = t("todo"); st[1].text = t("inprogress"); st[2].text = t("review"); st[3].text = t("done");
   const ro = $("m_role").options;
-  ro[0].text = t("roleMember"); ro[1].text = t("roleManager"); ro[2].text = t("roleHead");
+  if(ro.length >= 3){ ro[0].text = t("roleMember"); ro[1].text = t("roleManager"); ro[2].text = t("roleHead"); }
   $("notifBtn").textContent = (typeof Notification !== "undefined" && Notification.permission === "granted") ? t("notifOn") : t("notifOff");
-  $("meChip").textContent = "👤 " + (me || "…");
+  $("meChip").textContent = "👤 " + (me || "…") + " · " + t("signout");
   renderAll();
 }
 
-/* ---------- Firestore live sync ---------- */
-db.collection("members").orderBy("name").onSnapshot(s => {
-  members = s.docs.map(d => ({id:d.id, ...d.data()}));
-  fillPersonSelects(); renderNamePicker(); renderAll(); maybeDigest();
-});
-db.collection("projects").orderBy("name").onSnapshot(s => {
-  projects = s.docs.map(d => ({id:d.id, ...d.data()}));
-  fillProjectSelects(); renderAll();
-});
-db.collection("tasks").onSnapshot(s => {
-  if(!firstTasksLoad){
-    s.docChanges().forEach(ch => {
-      const d = ch.doc.data();
-      if(ch.type === "added" && d.assignee === me && d.createdBy !== me)
-        notify(t("nAssigned"), d.title);
-      if(ch.type === "modified" && d.status === "done" && d.completedBy && d.completedBy !== me && d.assignee === me)
-        notify(d.completedBy + " " + t("nDone"), d.title);
-    });
+/* ---------- Auth ---------- */
+auth.onAuthStateChanged(user => {
+  if(user){
+    authedEmail = (user.email || "").toLowerCase();
+    $("authOverlay").classList.remove("show");
+    startData();
+  } else {
+    authedEmail = null; me = null;
+    $("authOverlay").classList.add("show");
   }
-  firstTasksLoad = false;
-  tasks = s.docs.map(d => ({id:d.id, ...d.data()}));
-  renderAll(); maybeDigest();
+  applyLang();
 });
-db.collection("activity").orderBy("at","desc").limit(40).onSnapshot(s => {
-  feed = s.docs.map(d => d.data());
-  renderFeed();
-});
-setTimeout(()=>{ db.collection("meta").doc("ping").set({t:Date.now()}).then(()=>setConn(true)).catch(()=>setConn(false)); }, 500);
-function setConn(ok){ $("connDot").style.background = ok ? "var(--ok)" : "var(--bad)"; }
+function authErr(msg){ const e = $("a_err"); e.textContent = msg; e.style.display = "block"; }
+$("a_toggle").onclick = () => { signupMode = !signupMode; $("a_nameWrap").style.display = signupMode ? "" : "none"; $("a_err").style.display = "none"; applyLang(); };
+$("a_go").onclick = async () => {
+  const email = $("a_email").value.trim(), pass = $("a_pass").value;
+  $("a_err").style.display = "none";
+  try{
+    if(signupMode){
+      const nm = $("a_name").value.trim();
+      if(!nm) return authErr(t("yourName"));
+      signupName = nm;
+      await auth.createUserWithEmailAndPassword(email, pass);
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+  }catch(e){ authErr(e.message); }
+};
+$("a_forgot").onclick = async e => {
+  e.preventDefault();
+  const email = $("a_email").value.trim();
+  if(!email) return authErr(t("emailL"));
+  try{ await auth.sendPasswordResetEmail(email); authErr(t("resetSent")); }catch(err){ authErr(err.message); }
+};
+$("meChip").onclick = () => { if(authedEmail) auth.signOut(); };
 
-function logAct(text){
-  db.collection("activity").add({who:me||"?", text, at:firebase.firestore.FieldValue.serverTimestamp()});
+/* ---------- Firestore live sync (after login) ---------- */
+function startData(){
+  if(dataStarted) return;
+  dataStarted = true;
+  db.collection("members").orderBy("name").onSnapshot(s => {
+    members = s.docs.map(d => ({id:d.id, ...d.data()}));
+    resolveMe();
+    fillPersonSelects(); renderAll(); maybeDigest();
+  });
+  db.collection("projects").orderBy("name").onSnapshot(s => {
+    projects = s.docs.map(d => ({id:d.id, ...d.data()}));
+    fillProjectSelects(); renderAll();
+  });
+  db.collection("tasks").onSnapshot(s => {
+    if(!firstTasksLoad){
+      s.docChanges().forEach(ch => {
+        const d = ch.doc.data();
+        if(ch.type === "added" && d.assignee === me && d.createdBy !== me) notify(t("nAssigned"), d.title);
+        if(ch.type === "modified"){
+          if(d.status === "done" && d.approvedBy && d.approvedBy !== me && d.assignee === me) notify(d.approvedBy + " " + t("nDone"), d.title);
+          if(d.status === "inprogress" && d.returnedBy && d.assignee === me && d.returnedBy !== me) notify(t("nReturned"), d.title);
+          if(d.status === "review" && d.assignee !== me && canReview(d)) notify(t("nReview"), d.title);
+        }
+      });
+    }
+    firstTasksLoad = false;
+    tasks = s.docs.map(d => ({id:d.id, ...d.data()}));
+    renderAll(); maybeDigest();
+    if(editingId) renderTaskExtras();
+  });
+  db.collection("activity").orderBy("at","desc").limit(40).onSnapshot(s => {
+    feed = s.docs.map(d => d.data());
+    renderFeed();
+  });
+  db.collection("meta").doc("ping").set({t:Date.now()}).then(()=>setConn(true)).catch(()=>setConn(false));
 }
+function resolveMe(){
+  const m = members.find(x => (x.email||"").toLowerCase() === authedEmail);
+  if(m){ me = m.name; }
+  else if(authedEmail && signupName){
+    const nm = signupName; signupName = null;
+    db.collection("members").add({name:nm, email:authedEmail, whatsapp:"", role:"member", manager:"", team:[]});
+    me = nm;
+  }
+  else if(authedEmail && !me){
+    const nm = authedEmail.split("@")[0];
+    if(members.length && !members.some(x => x.name === nm)){
+      db.collection("members").add({name:nm, email:authedEmail, whatsapp:"", role:"member", manager:"", team:[]});
+    }
+    me = nm;
+  }
+  $("meChip").textContent = "👤 " + (me || "…") + " · " + t("signout");
+}
+function setConn(ok){ $("connDot").style.background = ok ? "var(--ok)" : "var(--bad)"; }
+function logAct(text){ db.collection("activity").add({who:me||"?", text, at:firebase.firestore.FieldValue.serverTimestamp()}); }
 
 /* ---------- Helpers ---------- */
 function esc(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -366,17 +476,28 @@ function projName(id){ const p = projects.find(z => z.id === id); return p ? p.n
 function memberByName(n){ return members.find(m => m.name === n); }
 function myProfile(){ return memberByName(me) || {}; }
 function roleOf(p){ return p.role || "member"; }
+function subordinateNames(){
+  const p = myProfile();
+  const set = new Set(p.team || []);
+  members.forEach(m => { if(m.manager === me) set.add(m.name); });
+  return set;
+}
 function canSee(x){
-  const p = myProfile(), r = roleOf(p);
+  const r = roleOf(myProfile());
   if(r === "head") return true;
-  if(r === "manager") return x.assignee === me || (p.team||[]).includes(x.assignee);
+  if(r === "manager") return x.assignee === me || subordinateNames().has(x.assignee);
   return x.assignee === me;
 }
-function visibleTasks(){ return me ? tasks.filter(canSee) : tasks; }
+function canReview(x){
+  if(roleOf(myProfile()) === "head") return true;
+  return subordinateNames().has(x.assignee);
+}
+function visibleTasks(){ return me ? tasks.filter(canSee) : []; }
 function visibleMembers(){
-  const p = myProfile(), r = roleOf(p);
-  if(!me || r === "head") return members;
-  if(r === "manager") return members.filter(m => m.name === me || (p.team||[]).includes(m.name));
+  const r = roleOf(myProfile());
+  if(!me) return [];
+  if(r === "head") return members;
+  if(r === "manager") return members.filter(m => m.name === me || subordinateNames().has(m.name));
   return members.filter(m => m.name === me);
 }
 function waLink(num, text){ return "https://wa.me/" + (num||"").replace(/[^0-9]/g,"") + "?text=" + encodeURIComponent(text); }
@@ -412,7 +533,7 @@ function renderBoard(){
   const fp = $("filterPerson").value;
   const fpr = $("filterProject").value;
   const mine = $("onlyMine").checked;
-  ["todo","inprogress","done"].forEach(st => {
+  ["todo","inprogress","review","done"].forEach(st => {
     const list = visibleTasks().filter(x => (x.status||"todo") === st)
       .filter(x => !q || (x.title||"").toLowerCase().includes(q) || (x.desc||"").toLowerCase().includes(q))
       .filter(x => !fp || x.assignee === fp)
@@ -422,17 +543,22 @@ function renderBoard(){
     $("cnt-" + st).textContent = list.length;
     $("list-" + st).innerHTML = list.map(x => {
       const mem = memberByName(x.assignee);
-      const wa = (mem && mem.whatsapp && st !== "done")
+      const wa = (mem && mem.whatsapp && st !== "done" && x.assignee !== me)
         ? `<a class="wa" target="_blank" href="${waLink(mem.whatsapp, t("waText") + ': ' + x.title + (x.date ? ' (' + fmtDue(x) + ')' : ''))}">WhatsApp</a>` : "";
+      const nC = (x.comments||[]).length, nF = (x.files||[]).length;
+      let act = "";
+      if(st === "todo") act = `<button onclick="setStatus('${x.id}','inprogress')">➜ ${t("inprogress")}</button>`;
+      if(st === "inprogress") act = `<button onclick="ownerDone('${x.id}')">${canReview(x) && x.assignee !== me ? t("approve") : t("submitDone")}</button>`;
+      if(st === "review" && canReview(x) && x.assignee !== me)
+        act = `<button class="ok" onclick="approveTask('${x.id}')">${t("approve")}</button><button class="warn" onclick="returnTask('${x.id}')">${t("returnT")}</button>`;
       return `
-      <div class="task ${isOverdue(x) ? "overdue" : ""}" draggable="true" data-id="${x.id}">
+      <div class="task ${isOverdue(x) ? "overdue" : ""} ${x.returnedBy && st === "inprogress" ? "returned" : ""}" draggable="true" data-id="${x.id}">
         <b>${esc(x.title)}</b>
-        <div class="meta"><span>👤 ${esc(x.assignee||"—")}</span>${x.project ? `<span class="ptag">${esc(projName(x.project))}</span>` : ""}${x.date ? `<span>📅 ${fmtDue(x)}</span>` : ""}</div>
-        ${x.status === "done" && x.completedBy ? `<div class="muted" style="font-size:11px">✔ ${esc(x.completedBy)}</div>` : ""}
-        <div class="actions">
-          ${st !== "done" ? `<button onclick="advance('${x.id}')">➜ ${st === "todo" ? t("inprogress") : t("done")}</button>` : ""}
-          <button onclick="openTask('${x.id}')">✎</button>${wa}
-        </div>
+        <div class="meta"><span>👤 ${esc(x.assignee||"—")}</span>${x.project ? `<span class="ptag">${esc(projName(x.project))}</span>` : ""}${x.date ? `<span>📅 ${fmtDue(x)}</span>` : ""}${nC ? `<span>💬 ${nC}</span>` : ""}${nF ? `<span>📎 ${nF}</span>` : ""}</div>
+        ${st === "review" ? `<div class="muted" style="font-size:11px">${t("waiting")} ${esc((memberByName(x.assignee)||{}).manager || "…")}</div>` : ""}
+        ${x.returnedBy && st === "inprogress" ? `<span class="rtag">${t("returnedTag")}: ${esc(x.returnedBy)}</span>` : ""}
+        ${st === "done" && x.approvedBy ? `<div class="muted" style="font-size:11px">✔ ${t("approvedByL")} ${esc(x.approvedBy)}</div>` : ""}
+        <div class="actions">${act}<button onclick="openTask('${x.id}')">✎ 💬 📎</button>${wa}</div>
       </div>`; }).join("");
   });
   document.querySelectorAll(".task[draggable]").forEach(el => {
@@ -450,7 +576,7 @@ document.querySelectorAll(".col").forEach(col => {
 
 function renderProjects(){
   $("projList").innerHTML = projects.map(p => {
-    const pt = tasks.filter(x => x.project === p.id);
+    const pt = tasks.filter(x => x.project === p.id && canSee(x));
     const d = pt.filter(x => x.status === "done").length;
     const pct = pt.length ? Math.round(d / pt.length * 100) : 0;
     return `<div class="card projcard">
@@ -490,20 +616,23 @@ $("prevM").onclick = () => { calDate.setMonth(calDate.getMonth() - 1); renderCal
 $("nextM").onclick = () => { calDate.setMonth(calDate.getMonth() + 1); renderCalendar(); };
 
 function renderMembers(){
+  const isHead = roleOf(myProfile()) === "head";
   $("memberList").innerHTML = members.map(mm => {
     const mine = tasks.filter(x => x.assignee === mm.name);
     const d = mine.filter(x => x.status === "done").length;
     const pct = mine.length ? Math.round(d / mine.length * 100) : 0;
+    const roleKey = {head:"roleHead", manager:"roleManager", member:"roleMember"}[mm.role || "member"];
     const contacts = [
-      mm.email ? `<a href="mailto:${esc(mm.email)}" style="text-decoration:none">✉️ ${esc(mm.email)}</a>` : "",
+      mm.email ? `✉️ ${esc(mm.email)}` : "",
       mm.whatsapp ? `<a class="wa" style="border-radius:6px;padding:2px 8px;text-decoration:none" target="_blank" href="${waLink(mm.whatsapp, "")}">WhatsApp</a>` : ""
     ].filter(Boolean).join(" &nbsp; ");
-    const roleKey = {head:"roleHead", manager:"roleManager", member:"roleMember"}[mm.role || "member"];
+    const mgr = mm.manager ? `<span class="ptag">⬆ ${esc(mm.manager)}</span>` : "";
+    const btns = isHead ? `<button class="btn sm" onclick="openMem('${mm.id}')">${t("edit")}</button>
+      <button class="btn sm red" onclick="removeMember('${mm.id}','${esc(mm.name)}')">${t("removeM")}</button>`
+      : (mm.name === me ? `<button class="btn sm" onclick="openMem('${mm.id}')">${t("edit")}</button>` : "");
     return `<div class="member"><div class="avatar">${esc((mm.name||"?")[0].toUpperCase())}</div>
-      <div class="info"><b>${esc(mm.name)}</b> <span class="ptag">${t(roleKey)}</span><div class="muted">${pct}% ${t("completion")} (${d}/${mine.length})</div>
-      <div class="muted" style="margin-top:2px">${contacts}</div></div>
-      <button class="btn sm" onclick="openMem('${mm.id}')">${t("edit")}</button>
-      <button class="btn sm red" onclick="removeMember('${mm.id}','${esc(mm.name)}')">${t("removeM")}</button></div>`;
+      <div class="info"><b>${esc(mm.name)}</b> <span class="ptag">${t(roleKey)}</span> ${mgr}<div class="muted">${pct}% ${t("completion")} (${d}/${mine.length})</div>
+      <div class="muted" style="margin-top:2px">${contacts}</div></div>${btns}</div>`;
   }).join("") || `<p class="muted" style="padding:10px">${t("noTasks")}</p>`;
 }
 
@@ -525,11 +654,44 @@ function fillProjectSelects(){
   $("f_project").innerHTML = `<option value="">${t("noProject")}</option>` + opts;
 }
 
+/* ---------- Review workflow ---------- */
+window.setStatus = (id, st) => {
+  const x = tasks.find(z => z.id === id);
+  if(!x) return;
+  const upd = {status:st};
+  if(st === "done"){
+    if(!(canReview(x) && x.assignee !== me)){ // owner or non-reviewer → mandatory review
+      upd.status = "review"; upd.submittedBy = me;
+    } else {
+      upd.completedBy = x.assignee; upd.approvedBy = me; upd.returnedBy = "";
+    }
+  }
+  if(st === "review"){ upd.submittedBy = me; }
+  if(st === "inprogress" && x.status === "review"){ /* dragging back = return */ }
+  db.collection("tasks").doc(id).update(upd);
+  logAct(`${t("actMoved")} "${x.title}" ${t("to")} ${t(upd.status)}`);
+};
+window.ownerDone = id => setStatus(id, "done");
+window.approveTask = id => {
+  const x = tasks.find(z => z.id === id); if(!x) return;
+  db.collection("tasks").doc(id).update({status:"done", completedBy:x.assignee, approvedBy:me, returnedBy:""});
+  logAct(`${t("actApproved")} "${x.title}"`);
+};
+window.returnTask = id => {
+  const x = tasks.find(z => z.id === id); if(!x) return;
+  const reason = prompt(t("amendReason")) || "";
+  const upd = {status:"inprogress", returnedBy:me};
+  db.collection("tasks").doc(id).update(upd);
+  if(reason) addCommentTo(id, "↩ " + reason);
+  logAct(`${t("actReturned")} "${x.title}"`);
+};
+
 /* ---------- Task CRUD ---------- */
 window.openTask = (id, presetDate) => {
   editingId = id;
   $("taskModalTitle").textContent = id ? t("editTask") : t("newTask");
   $("delTaskBtn").style.display = id ? "" : "none";
+  $("taskExtras").style.display = id ? "" : "none";
   const x = id ? tasks.find(z => z.id === id) : null;
   $("f_title").value = x ? x.title : "";
   $("f_desc").value = x ? (x.desc||"") : "";
@@ -539,23 +701,70 @@ window.openTask = (id, presetDate) => {
   $("f_date").value = x ? (x.date||"") : (presetDate||"");
   $("f_time").value = x ? (x.time||"") : "";
   $("f_status").value = x ? (x.status||"todo") : "todo";
+  $("f_comment").value = ""; $("f_link").value = ""; $("f_file").value = "";
+  if(id) renderTaskExtras();
   $("taskOverlay").classList.add("show");
 };
+function renderTaskExtras(){
+  const x = tasks.find(z => z.id === editingId);
+  if(!x) return;
+  $("commentList").innerHTML = (x.comments||[]).map(c =>
+    `<div class="comment"><b>${esc(c.by)}</b>: ${esc(c.text)}<div class="muted">${c.at ? new Date(c.at).toLocaleString() : ""}</div></div>`).join("") || `<p class="muted">${t("noTasks")}</p>`;
+  $("attachList").innerHTML = (x.files||[]).map((f,i) =>
+    `<div class="attach">📎 <a ${f.url ? `href="${esc(f.url)}" target="_blank"` : `href="${f.data}" download="${esc(f.name)}"`}>${esc(f.name)}</a><span class="muted">${esc(f.by||"")}</span></div>`).join("") || `<p class="muted">${t("noTasks")}</p>`;
+}
+function addCommentTo(id, text){
+  db.collection("tasks").doc(id).update({comments: firebase.firestore.FieldValue.arrayUnion({by:me, text, at:Date.now()})});
+}
+$("addCommentBtn").onclick = () => {
+  const txt = $("f_comment").value.trim();
+  if(!txt || !editingId) return;
+  addCommentTo(editingId, txt);
+  $("f_comment").value = "";
+};
+$("addLinkBtn").onclick = () => {
+  const url = $("f_link").value.trim();
+  if(!url || !editingId) return;
+  db.collection("tasks").doc(editingId).update({files: firebase.firestore.FieldValue.arrayUnion({name:url.replace(/^https?:\/\//,"").slice(0,60), url, by:me, at:Date.now()})});
+  $("f_link").value = "";
+};
+$("f_file").onchange = () => {
+  const f = $("f_file").files[0];
+  if(!f || !editingId) return;
+  const r = new FileReader();
+  r.onload = () => {
+    if(r.result.length > 950000){ alert(t("fileTooBig")); $("f_file").value = ""; return; }
+    db.collection("tasks").doc(editingId).update({files: firebase.firestore.FieldValue.arrayUnion({name:f.name, data:r.result, by:me, at:Date.now()})});
+    $("f_file").value = "";
+  };
+  r.readAsDataURL(f);
+};
 $("addTaskBtn").onclick = () => openTask(null);
-$("cancelTaskBtn").onclick = () => $("taskOverlay").classList.remove("show");
+$("cancelTaskBtn").onclick = () => { editingId = null; $("taskOverlay").classList.remove("show"); };
 $("saveTaskBtn").onclick = () => {
   const title = $("f_title").value.trim();
   if(!title) return;
   const data = {title, desc:$("f_desc").value.trim(), assignee:$("f_assignee").value, project:$("f_project").value,
-    date:$("f_date").value, time:$("f_time").value, status:$("f_status").value};
-  if(data.status === "done") data.completedBy = me;
-  if(editingId){ db.collection("tasks").doc(editingId).update(data); }
-  else{
+    date:$("f_date").value, time:$("f_time").value};
+  const newStatus = $("f_status").value;
+  if(editingId){
+    const x = tasks.find(z => z.id === editingId);
+    if(x && newStatus !== x.status){
+      db.collection("tasks").doc(editingId).update(data);
+      setStatus(editingId, newStatus);
+    } else {
+      data.status = x ? x.status : newStatus;
+      db.collection("tasks").doc(editingId).update(data);
+    }
+  } else {
+    data.status = (newStatus === "done") ? "review" : newStatus;
     data.createdBy = me;
+    data.comments = []; data.files = [];
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     db.collection("tasks").add(data);
     logAct(`${t("actCreated")} "${title}" → ${data.assignee}`);
   }
+  editingId = null;
   $("taskOverlay").classList.remove("show");
 };
 $("delTaskBtn").onclick = () => {
@@ -563,18 +772,8 @@ $("delTaskBtn").onclick = () => {
   const x = tasks.find(z => z.id === editingId);
   db.collection("tasks").doc(editingId).delete();
   logAct(`${t("actDeleted")} "${x ? x.title : ""}"`);
+  editingId = null;
   $("taskOverlay").classList.remove("show");
-};
-window.setStatus = (id, st) => {
-  const upd = {status:st};
-  if(st === "done") upd.completedBy = me;
-  db.collection("tasks").doc(id).update(upd);
-  const x = tasks.find(z => z.id === id);
-  logAct(`${t("actMoved")} "${x ? x.title : ""}" ${t("to")} ${t(st)}`);
-};
-window.advance = id => {
-  const x = tasks.find(z => z.id === id);
-  if(x) setStatus(id, x.status === "todo" ? "inprogress" : "done");
 };
 
 /* ---------- Projects ---------- */
@@ -607,12 +806,6 @@ $("delProjBtn").onclick = () => {
 };
 
 /* ---------- Members ---------- */
-$("addMemberBtn").onclick = () => {
-  const n = $("newMember").value.trim();
-  if(!n) return;
-  db.collection("members").add({name:n, email:"", whatsapp:""});
-  $("newMember").value = "";
-};
 window.openMem = id => {
   editingMemId = id;
   const m = members.find(z => z.id === id);
@@ -620,62 +813,36 @@ window.openMem = id => {
   $("m_email").value = m ? (m.email||"") : "";
   $("m_wa").value = m ? (m.whatsapp||"") : "";
   $("m_role").value = (m && m.role) ? m.role : "member";
-  renderTeamPicker(m);
+  $("m_manager").innerHTML = `<option value="">${t("noManager")}</option>` +
+    members.filter(x => x.id !== id).map(x => `<option>${esc(x.name)}</option>`).join("");
+  $("m_manager").value = (m && m.manager) ? m.manager : "";
+  const isHead = roleOf(myProfile()) === "head";
+  $("m_role").disabled = !isHead;
+  $("m_manager").disabled = !isHead;
+  applyLang();
   $("memOverlay").classList.add("show");
 };
-function renderTeamPicker(m){
-  const show = $("m_role").value === "manager";
-  $("m_teamWrap").style.display = show ? "" : "none";
-  const sel = (m && m.team) ? m.team : [];
-  $("m_team").innerHTML = members.filter(x => x.id !== editingMemId).map(x =>
-    `<label class="checkitem"><input type="checkbox" value="${esc(x.name)}" ${sel.includes(x.name) ? "checked" : ""}> ${esc(x.name)}</label>`).join("");
-}
-$("m_role").onchange = () => renderTeamPicker(members.find(z => z.id === editingMemId));
 $("cancelMemBtn").onclick = () => $("memOverlay").classList.remove("show");
 $("saveMemBtn").onclick = () => {
   const name = $("m_name").value.trim();
   if(!name || !editingMemId) return;
   const old = members.find(z => z.id === editingMemId);
-  const role = $("m_role").value;
-  const team = (role === "manager") ? Array.from($("m_team").querySelectorAll("input:checked")).map(i => i.value) : [];
-  db.collection("members").doc(editingMemId).update({name, email:$("m_email").value.trim(), whatsapp:$("m_wa").value.trim(), role, team});
+  const upd = {name, email:$("m_email").value.trim().toLowerCase(), whatsapp:$("m_wa").value.trim()};
+  if(roleOf(myProfile()) === "head"){ upd.role = $("m_role").value; upd.manager = $("m_manager").value; }
+  db.collection("members").doc(editingMemId).update(upd);
   if(old && old.name !== name){
     tasks.filter(x => x.assignee === old.name).forEach(x => db.collection("tasks").doc(x.id).update({assignee:name}));
     projects.filter(p => (p.members||[]).includes(old.name)).forEach(p =>
       db.collection("projects").doc(p.id).update({members:p.members.map(n => n === old.name ? name : n)}));
-    members.filter(mm => mm.id !== editingMemId && (mm.team||[]).includes(old.name)).forEach(mm =>
-      db.collection("members").doc(mm.id).update({team:mm.team.map(n => n === old.name ? name : n)}));
-    if(me === old.name){ me = name; localStorage.setItem("tt_me", name); }
+    members.filter(mm => mm.id !== editingMemId && mm.manager === old.name).forEach(mm =>
+      db.collection("members").doc(mm.id).update({manager:name}));
+    if(me === old.name) me = name;
   }
   $("memOverlay").classList.remove("show");
-  applyLang();
 };
 window.removeMember = (id, name) => {
   if(confirm(t("confirmDelM"))){ db.collection("members").doc(id).delete(); logAct(`${t("actRemoved")} ${name}`); }
 };
-
-/* ---------- Name picker ---------- */
-function renderNamePicker(){
-  if(me) return;
-  $("nameList").innerHTML = members.map(m =>
-    `<button class="namebtn" onclick="pickName('${esc(m.name)}')">👤 ${esc(m.name)}</button>`).join("");
-  $("nameOverlay").classList.add("show");
-}
-window.pickName = n => {
-  me = n; localStorage.setItem("tt_me", n);
-  $("nameOverlay").classList.remove("show");
-  applyLang();
-};
-$("newNameBtn").onclick = () => {
-  const n = $("newName").value.trim();
-  if(!n) return;
-  db.collection("members").add({name:n, email:"", whatsapp:""});
-  me = n; localStorage.setItem("tt_me", n);
-  logAct(t("actJoined"));
-  $("nameOverlay").classList.remove("show");
-  applyLang();
-};
-$("meChip").onclick = () => { me = null; localStorage.removeItem("tt_me"); renderNamePicker(); };
 
 /* ---------- Browser notifications ---------- */
 function notify(title, body){
@@ -737,7 +904,7 @@ async function runDailyDigest(){
       const pending = tasks.filter(x => x.assignee === m.name && x.status !== "done");
       if(!pending.length) return;
       const msg = pending.map(x =>
-        "• " + x.title + (x.project ? " [" + projName(x.project) + "]" : "") + (x.date ? " — due " + fmtDue(x) : "") + (isOverdue(x) ? " (OVERDUE)" : "")
+        "• " + x.title + (x.project ? " [" + projName(x.project) + "]" : "") + (x.status === "review" ? " (in review)" : "") + (x.date ? " — due " + fmtDue(x) : "") + (isOverdue(x) ? " (OVERDUE)" : "")
       ).join("\n");
       fetch("https://api.emailjs.com/api/v1.0/email/send", {
         method:"POST", headers:{"Content-Type":"application/json"},
