@@ -302,7 +302,8 @@ memberName:"Name",memberEmail:"Email",memberWhatsapp:"WhatsApp number (with coun
 role:"Role",roleHead:"Head — sees everything",roleManager:"Manager — sees his team",roleMember:"Member — sees own tasks only",
 managerL:"Direct manager",noManager:"— None —",
 inviteTitle:"Invite a member",invName:"Full name...",invEmail:"Email...",invWa:"WhatsApp (optional)",invite:"Send invitation",invited:"✔ Invitation email sent to",invitedNoEmail:"Profile created (email not sent — check ✉️ digest settings) for",
-inviteMsg:"You are invited to join the Rize Tasks team workspace. Steps: 1) Open the link below. 2) Click 'New? Create account'. 3) Register using THIS email address so your profile links automatically. Your tasks will be waiting for you.",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
+inviteMsg:"You are invited to join the Rize Tasks team workspace. Steps: 1) Open the link below. 2) Click 'New? Create account'. 3) Register using THIS email address so your profile links automatically. Your tasks will be waiting for you.",
+revMailMsg:"submitted a task for your review:",dueW:"due",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
 emailSettings:"Daily email digest (EmailJS)",
 emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Emails are sent when the first member opens the app that day.",
 digestOn:"Enable daily digest",
@@ -330,7 +331,8 @@ memberName:"الاسم",memberEmail:"البريد الإلكتروني",memberWh
 role:"الصلاحية",roleHead:"رئيس — يرى كل شيء",roleManager:"مدير — يرى فريقه",roleMember:"عضو — يرى مهامه فقط",
 managerL:"المدير المباشر",noManager:"— لا يوجد —",mTeam:"فريق المدير (يمكن اختيار عدة أعضاء)",
 inviteTitle:"دعوة عضو",invName:"الاسم الكامل...",invEmail:"البريد الإلكتروني...",invWa:"واتساب (اختياري)",invite:"إرسال الدعوة",invited:"✔ أُرسلت الدعوة بالبريد إلى",invitedNoEmail:"أُنشئ الملف (لم يُرسل البريد — راجع إعدادات ✉️) لـ",
-inviteMsg:"أنت مدعو للانضمام إلى مساحة عمل مهام Rize. الخطوات: 1) افتح الرابط أدناه. 2) اضغط 'New? Create account'. 3) سجّل بهذا البريد الإلكتروني نفسه ليرتبط ملفك تلقائيًا. مهامك بانتظارك.",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
+inviteMsg:"أنت مدعو للانضمام إلى مساحة عمل مهام Rize. الخطوات: 1) افتح الرابط أدناه. 2) اضغط 'New? Create account'. 3) سجّل بهذا البريد الإلكتروني نفسه ليرتبط ملفك تلقائيًا. مهامك بانتظارك.",
+revMailMsg:"قدّم مهمة لمراجعتك:",dueW:"الاستحقاق",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
 emailSettings:"الملخص اليومي بالبريد (EmailJS)",
 emailInfo:"كل صباح، يصل لكل عضو له بريد قائمة بمهامه غير المنجزة. تُرسل عندما يفتح أول عضو التطبيق ذلك اليوم.",
 digestOn:"تفعيل الملخص اليومي",
@@ -693,7 +695,32 @@ window.setStatus = (id, st) => {
   if(st === "inprogress" && x.status === "review"){ /* dragging back = return */ }
   db.collection("tasks").doc(id).update(upd);
   logAct(`${t("actMoved")} "${x.title}" ${t("to")} ${t(upd.status)}`);
+  if(upd.status === "review") emailReviewers(x);
 };
+async function emailReviewers(x){
+  try{
+    const cfgDoc = await db.collection("meta").doc("emailcfg").get();
+    if(!cfgDoc.exists) return;
+    const cfg = cfgDoc.data();
+    if(!cfg.serviceId || !cfg.templateId || !cfg.publicKey) return;
+    const mgrName = (memberByName(x.assignee)||{}).manager;
+    const recipients = members.filter(m => m.email && m.name !== me &&
+      (m.name === mgrName || (m.team||[]).includes(x.assignee) || (m.role||"member") === "head"));
+    const seen = new Set();
+    const msg = me + " " + t("revMailMsg") + "\n\n• " + x.title +
+      (x.date ? " — " + t("dueW") + " " + fmtDue(x) : "") +
+      "\n\nhttps://hokeyhassan.github.io/Finance-tasks/";
+    recipients.forEach(m => {
+      if(seen.has(m.email)) return;
+      seen.add(m.email);
+      fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({service_id:cfg.serviceId, template_id:cfg.templateId, user_id:cfg.publicKey,
+          template_params:{to_email:m.email, to_name:m.name, message:msg}})
+      });
+    });
+  }catch(e){ /* silent */ }
+}
 window.ownerDone = id => setStatus(id, "done");
 window.approveTask = id => {
   const x = tasks.find(z => z.id === id); if(!x) return;
