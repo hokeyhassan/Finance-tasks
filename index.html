@@ -147,6 +147,16 @@ table.cal td.today{background:#e8f0fe}
     <p class="muted" style="margin-top:8px" data-i="calHint"></p>
   </div>
   <div id="view-team" style="display:none">
+    <div class="card" id="inviteCard" style="display:none;margin-bottom:12px">
+      <h3 data-i="inviteTitle"></h3>
+      <div class="toolbar" style="margin:10px 0 0">
+        <input id="inv_name" style="flex:1;min-width:120px">
+        <input id="inv_email" type="email" style="flex:1;min-width:160px">
+        <input id="inv_wa" style="min-width:140px">
+        <button class="btn" id="inviteBtn"></button>
+      </div>
+      <p class="muted" id="inviteStatus" style="margin-top:6px"></p>
+    </div>
     <div class="card" id="memberList"></div>
     <p class="muted" style="margin-top:8px" data-i="teamHint"></p>
   </div>
@@ -290,7 +300,9 @@ addProject:"+ Add project",projectName:"Project name",projectMembers:"Project me
 addMember:"Add",removeM:"Remove",completion:"completion",edit:"Edit",
 memberName:"Name",memberEmail:"Email",memberWhatsapp:"WhatsApp number (with country code)",editMember:"Member details",
 role:"Role",roleHead:"Head — sees everything",roleManager:"Manager — sees his team",roleMember:"Member — sees own tasks only",
-managerL:"Direct manager",noManager:"— None —",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
+managerL:"Direct manager",noManager:"— None —",
+inviteTitle:"Invite a member",invName:"Full name...",invEmail:"Email...",invWa:"WhatsApp (optional)",invite:"Send invitation",invited:"✔ Invitation email sent to",invitedNoEmail:"Profile created (email not sent — check ✉️ digest settings) for",
+inviteMsg:"You are invited to join the Rize Tasks team workspace. Steps: 1) Open the link below. 2) Click 'New? Create account'. 3) Register using THIS email address so your profile links automatically. Your tasks will be waiting for you.",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
 emailSettings:"Daily email digest (EmailJS)",
 emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Emails are sent when the first member opens the app that day.",
 digestOn:"Enable daily digest",
@@ -316,7 +328,9 @@ addProject:"+ مشروع جديد",projectName:"اسم المشروع",projectMe
 addMember:"إضافة",removeM:"إزالة",completion:"إنجاز",edit:"تعديل",
 memberName:"الاسم",memberEmail:"البريد الإلكتروني",memberWhatsapp:"رقم واتساب (مع كود الدولة)",editMember:"بيانات العضو",
 role:"الصلاحية",roleHead:"رئيس — يرى كل شيء",roleManager:"مدير — يرى فريقه",roleMember:"عضو — يرى مهامه فقط",
-managerL:"المدير المباشر",noManager:"— لا يوجد —",mTeam:"فريق المدير (يمكن اختيار عدة أعضاء)",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
+managerL:"المدير المباشر",noManager:"— لا يوجد —",mTeam:"فريق المدير (يمكن اختيار عدة أعضاء)",
+inviteTitle:"دعوة عضو",invName:"الاسم الكامل...",invEmail:"البريد الإلكتروني...",invWa:"واتساب (اختياري)",invite:"إرسال الدعوة",invited:"✔ أُرسلت الدعوة بالبريد إلى",invitedNoEmail:"أُنشئ الملف (لم يُرسل البريد — راجع إعدادات ✉️) لـ",
+inviteMsg:"أنت مدعو للانضمام إلى مساحة عمل مهام Rize. الخطوات: 1) افتح الرابط أدناه. 2) اضغط 'New? Create account'. 3) سجّل بهذا البريد الإلكتروني نفسه ليرتبط ملفك تلقائيًا. مهامك بانتظارك.",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
 emailSettings:"الملخص اليومي بالبريد (EmailJS)",
 emailInfo:"كل صباح، يصل لكل عضو له بريد قائمة بمهامه غير المنجزة. تُرسل عندما يفتح أول عضو التطبيق ذلك اليوم.",
 digestOn:"تفعيل الملخص اليومي",
@@ -368,6 +382,10 @@ function applyLang(){
   $("addCommentBtn").textContent = t("addC");
   $("addLinkBtn").textContent = t("addL");
   $("a_forgot").textContent = t("forgot");
+  $("inv_name").placeholder = t("invName");
+  $("inv_email").placeholder = t("invEmail");
+  $("inv_wa").placeholder = t("invWa");
+  $("inviteBtn").textContent = t("invite");
   $("a_toggle").textContent = signupMode ? t("haveAcc") : t("noAcc");
   $("a_go").textContent = signupMode ? t("signup") : t("login");
   const st = $("f_status").options;
@@ -621,6 +639,7 @@ $("nextM").onclick = () => { calDate.setMonth(calDate.getMonth() + 1); renderCal
 
 function renderMembers(){
   const isHead = roleOf(myProfile()) === "head";
+  $("inviteCard").style.display = isHead ? "" : "none";
   $("memberList").innerHTML = members.map(mm => {
     const mine = tasks.filter(x => x.assignee === mm.name);
     const d = mine.filter(x => x.status === "done").length;
@@ -858,6 +877,35 @@ $("saveMemBtn").onclick = () => {
     if(me === old.name) me = name;
   }
   $("memOverlay").classList.remove("show");
+};
+$("inviteBtn").onclick = async () => {
+  const name = $("inv_name").value.trim();
+  const email = $("inv_email").value.trim().toLowerCase();
+  const wa = $("inv_wa").value.trim();
+  if(!name || !email) return;
+  if(!members.some(m => (m.email||"").toLowerCase() === email)){
+    db.collection("members").add({name, email, whatsapp:wa, role:"member", manager:"", team:[]});
+  }
+  const link = "https://hokeyhassan.github.io/Finance-tasks/";
+  const msg = t("inviteMsg") + "\n\n" + link;
+  let sent = false;
+  try{
+    const cfgDoc = await db.collection("meta").doc("emailcfg").get();
+    if(cfgDoc.exists){
+      const cfg = cfgDoc.data();
+      if(cfg.serviceId && cfg.templateId && cfg.publicKey){
+        const r = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({service_id:cfg.serviceId, template_id:cfg.templateId, user_id:cfg.publicKey,
+            template_params:{to_email:email, to_name:name, message:msg}})
+        });
+        sent = r.ok;
+      }
+    }
+  }catch(e){}
+  $("inviteStatus").textContent = (sent ? t("invited") : t("invitedNoEmail")) + " " + name + " (" + email + ")";
+  if(wa) window.open(waLink(wa, msg), "_blank");
+  $("inv_name").value = ""; $("inv_email").value = ""; $("inv_wa").value = "";
 };
 window.removeMember = (id, name) => {
   if(confirm(t("confirmDelM"))){ db.collection("members").doc(id).delete(); logAct(`${t("actRemoved")} ${name}`); }
