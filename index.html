@@ -85,6 +85,11 @@ table.cal td.today{background:#e8f0fe}
 .attach{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:5px 0;font-size:13px}
 .attach a{color:var(--accent2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 #authBox{max-width:380px}
+table.rep{width:100%;border-collapse:collapse;font-size:13px}
+table.rep th{background:var(--accent);color:#fff;padding:7px 9px;text-align:start;white-space:nowrap}
+table.rep td{border-bottom:1px solid var(--line);padding:6px 9px}
+table.rep tr:nth-child(even) td{background:#f7f9ff}
+@media print{header,nav,#repToolbar{display:none!important}main{padding:0}.card{border:none;box-shadow:none}}
 #authBox .logo{font-size:34px;text-align:center;margin-bottom:6px}
 @media(max-width:640px){header h1{font-size:15px}main{padding:10px}}
 </style>
@@ -109,6 +114,7 @@ table.cal td.today{background:#e8f0fe}
   <button data-view="calendar"></button>
   <button data-view="team"></button>
   <button data-view="activity"></button>
+  <button data-view="reports"></button>
 </nav>
 <main>
   <div id="view-dashboard">
@@ -162,6 +168,20 @@ table.cal td.today{background:#e8f0fe}
   </div>
   <div id="view-activity" style="display:none">
     <div class="card" id="feedList"></div>
+  </div>
+  <div id="view-reports" style="display:none">
+    <div class="toolbar" id="repToolbar">
+      <span class="muted" data-i="fromL"></span><input type="date" id="r_from">
+      <span class="muted" data-i="toL"></span><input type="date" id="r_to">
+      <select id="r_person"></select>
+      <select id="r_project"></select>
+      <select id="r_status"></select>
+      <button class="btn" id="csvBtn"></button>
+      <button class="btn gray" id="csvSumBtn"></button>
+      <button class="btn gray" id="printBtn"></button>
+    </div>
+    <div class="card" style="overflow:auto"><h3 data-i="teamProgress"></h3><div id="repSummary"></div></div>
+    <div class="card" style="margin-top:12px;overflow:auto" id="repTable"></div>
   </div>
 </main>
 
@@ -308,7 +328,9 @@ managerL:"Direct manager",noManager:"— None —",
 inviteTitle:"Invite a member",invName:"Full name...",invEmail:"Email...",invWa:"WhatsApp (optional)",invite:"Send invitation",invited:"✔ Invitation email sent to",invitedNoEmail:"Profile created (email not sent — check ✉️ digest settings) for",
 inviteMsg:"You are invited to join the Rize Tasks team workspace. Steps: 1) Open the link below. 2) Click 'New? Create account'. 3) Register using THIS email address so your profile links automatically. Your tasks will be waiting for you.",
 revMailMsg:"submitted a task for your review:",dueW:"due",
-repeatL:"Repeat",rNone:"No repeat",rDaily:"Daily",rWeekly:"Weekly",rMonthly:"Monthly",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
+repeatL:"Repeat",rNone:"No repeat",rDaily:"Daily",rWeekly:"Weekly",rMonthly:"Monthly",
+reports:"Reports",fromL:"From",toL:"To",allStatus:"All statuses",exportCsv:"⬇ Export Excel (CSV)",exportSum:"⬇ Summary CSV",printR:"🖨 Print / PDF",
+thTitle:"Title",thAssignee:"Assignee",thProject:"Project",thStatus:"Status",thDue:"Due",thCreatedBy:"Created by",thApprovedBy:"Approved by",thOverdue:"Overdue",thTotal:"Total",thPct:"Completion %",yesW:"Yes",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
 emailSettings:"Daily email digest (EmailJS)",
 emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Emails are sent when the first member opens the app that day.",
 digestOn:"Enable daily digest",
@@ -338,7 +360,9 @@ managerL:"المدير المباشر",noManager:"— لا يوجد —",mTeam:"
 inviteTitle:"دعوة عضو",invName:"الاسم الكامل...",invEmail:"البريد الإلكتروني...",invWa:"واتساب (اختياري)",invite:"إرسال الدعوة",invited:"✔ أُرسلت الدعوة بالبريد إلى",invitedNoEmail:"أُنشئ الملف (لم يُرسل البريد — راجع إعدادات ✉️) لـ",
 inviteMsg:"أنت مدعو للانضمام إلى مساحة عمل مهام Rize. الخطوات: 1) افتح الرابط أدناه. 2) اضغط 'New? Create account'. 3) سجّل بهذا البريد الإلكتروني نفسه ليرتبط ملفك تلقائيًا. مهامك بانتظارك.",
 revMailMsg:"قدّم مهمة لمراجعتك:",dueW:"الاستحقاق",
-repeatL:"التكرار",rNone:"بدون تكرار",rDaily:"يومي",rWeekly:"أسبوعي",rMonthly:"شهري",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
+repeatL:"التكرار",rNone:"بدون تكرار",rDaily:"يومي",rWeekly:"أسبوعي",rMonthly:"شهري",
+reports:"التقارير",fromL:"من",toL:"إلى",allStatus:"كل الحالات",exportCsv:"⬇ تصدير إكسل (CSV)",exportSum:"⬇ ملخص CSV",printR:"🖨 طباعة / PDF",
+thTitle:"العنوان",thAssignee:"المسند إليه",thProject:"المشروع",thStatus:"الحالة",thDue:"الاستحقاق",thCreatedBy:"أنشأها",thApprovedBy:"اعتمدها",thOverdue:"متأخرة",thTotal:"الإجمالي",thPct:"نسبة الإنجاز",yesW:"نعم",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
 emailSettings:"الملخص اليومي بالبريد (EmailJS)",
 emailInfo:"كل صباح، يصل لكل عضو له بريد قائمة بمهامه غير المنجزة. تُرسل عندما يفتح أول عضو التطبيق ذلك اليوم.",
 digestOn:"تفعيل الملخص اليومي",
@@ -394,6 +418,9 @@ function applyLang(){
   $("inv_email").placeholder = t("invEmail");
   $("inv_wa").placeholder = t("invWa");
   $("inviteBtn").textContent = t("invite");
+  $("csvBtn").textContent = t("exportCsv");
+  $("csvSumBtn").textContent = t("exportSum");
+  $("printBtn").textContent = t("printR");
   $("a_toggle").textContent = signupMode ? t("haveAcc") : t("noAcc");
   $("a_go").textContent = signupMode ? t("signup") : t("login");
   const st = $("f_status").options;
@@ -542,7 +569,7 @@ function visibleMembers(){
 function waLink(num, text){ return "https://wa.me/" + (num||"").replace(/[^0-9]/g,"") + "?text=" + encodeURIComponent(text); }
 
 /* ---------- Rendering ---------- */
-function renderAll(){ renderStats(); renderBoard(); renderProjects(); renderCalendar(); renderMembers(); }
+function renderAll(){ renderStats(); renderBoard(); renderProjects(); renderCalendar(); renderMembers(); renderReports(); }
 
 function renderStats(){
   const vt = visibleTasks();
@@ -1065,11 +1092,88 @@ $("importFile").onchange = e => {
   r.readAsText(f);
 };
 
+/* ---------- Reports ---------- */
+function fillReportSelects(){
+  const pv = $("r_person").value, prv = $("r_project").value, sv = $("r_status").value;
+  $("r_person").innerHTML = `<option value="">${t("all")}</option>` + visibleMembers().map(m => `<option>${esc(m.name)}</option>`).join("");
+  $("r_project").innerHTML = `<option value="">${t("allProjects")}</option>` + projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  $("r_status").innerHTML = `<option value="">${t("allStatus")}</option>` + ["todo","inprogress","review","done"].map(s => `<option value="${s}">${t(s)}</option>`).join("");
+  $("r_person").value = pv; $("r_project").value = prv; $("r_status").value = sv;
+}
+function reportTasks(){
+  const f = $("r_from").value, to = $("r_to").value, p = $("r_person").value, pr = $("r_project").value, s = $("r_status").value;
+  return visibleTasks().filter(x =>
+    (!f || (x.date && x.date >= f)) && (!to || (x.date && x.date <= to)) &&
+    (!p || x.assignee === p) && (!pr || x.project === pr) && (!s || (x.status||"todo") === s));
+}
+function statusName(x){ return t(x.status||"todo"); }
+function memberSummaryRows(rt){
+  return visibleMembers().map(m => {
+    const mt = rt.filter(x => x.assignee === m.name);
+    const d = mt.filter(x => x.status === "done").length;
+    return [m.name, mt.length,
+      mt.filter(x => (x.status||"todo") === "todo").length,
+      mt.filter(x => x.status === "inprogress").length,
+      mt.filter(x => x.status === "review").length,
+      d, mt.filter(isOverdue).length,
+      (mt.length ? Math.round(d/mt.length*100) : 0) + "%"];
+  });
+}
+function projectSummaryRows(rt){
+  return projects.map(p => {
+    const pt = rt.filter(x => x.project === p.id);
+    const d = pt.filter(x => x.status === "done").length;
+    return [p.name, pt.length, d, pt.filter(isOverdue).length, (pt.length ? Math.round(d/pt.length*100) : 0) + "%"];
+  }).filter(r => r[1] > 0);
+}
+function renderReports(){
+  if(!$("repSummary")) return;
+  fillReportSelects();
+  const rt = reportTasks();
+  const sumHead = [t("thAssignee"),t("thTotal"),t("todo"),t("inprogress"),t("review"),t("done"),t("overdueN"),t("thPct")];
+  $("repSummary").innerHTML = `<table class="rep"><tr>${sumHead.map(h=>`<th>${h}</th>`).join("")}</tr>` +
+    memberSummaryRows(rt).map(r => `<tr>${r.map(c=>`<td>${esc(String(c))}</td>`).join("")}</tr>`).join("") + `</table>`;
+  const head8 = `<tr><th>${t("thTitle")}</th><th>${t("thAssignee")}</th><th>${t("thProject")}</th><th>${t("thStatus")}</th><th>${t("thDue")}</th><th>${t("thOverdue")}</th><th>${t("thCreatedBy")}</th><th>${t("thApprovedBy")}</th></tr>`;
+  const taskRow = x => `<tr><td>${esc(x.title)}</td><td>${esc(x.assignee||"")}</td><td>${esc(projName(x.project))}</td><td>${statusName(x)}</td><td>${fmtDue(x)}</td><td>${isOverdue(x) ? t("yesW") : ""}</td><td>${esc(x.createdBy||"")}</td><td>${esc(x.approvedBy||"")}</td></tr>`;
+  const odList = rt.filter(isOverdue).sort((a,b) => (dueMs(a)||0) - (dueMs(b)||0));
+  const rvList = rt.filter(x => x.status === "review");
+  const projRows = projectSummaryRows(rt);
+  $("repTable").innerHTML =
+    `<h3>${t("projects")}</h3><table class="rep"><tr><th>${t("thProject")}</th><th>${t("thTotal")}</th><th>${t("done")}</th><th>${t("overdueN")}</th><th>${t("thPct")}</th></tr>` +
+    projRows.map(r => `<tr>${r.map(c=>`<td>${esc(String(c))}</td>`).join("")}</tr>`).join("") + `</table>` +
+    `<h3 style="margin-top:16px;color:var(--bad)">${t("overdueN")} (${odList.length})</h3><table class="rep">${head8}${odList.map(taskRow).join("")}</table>` +
+    `<h3 style="margin-top:16px;color:var(--rev)">${t("review")} (${rvList.length})</h3><table class="rep">${head8}${rvList.map(taskRow).join("")}</table>` +
+    `<h3 style="margin-top:16px">${t("total")} (${rt.length})</h3><table class="rep">${head8}${rt.map(taskRow).join("")}</table>`;
+}
+function dlCsv(name, rows){
+  const csv = "﻿" + rows.map(r => r.map(c => '"' + String(c == null ? "" : c).replace(/"/g,'""') + '"').join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  a.download = name; a.click();
+}
+$("csvBtn").onclick = () => {
+  const rt = reportTasks();
+  dlCsv("rize-tasks-report.csv",
+    [[t("thTitle"),t("thAssignee"),t("thProject"),t("thStatus"),t("thDue"),t("thOverdue"),t("thCreatedBy"),t("thApprovedBy"),t("repeatL")]]
+    .concat(rt.map(x => [x.title, x.assignee||"", projName(x.project), statusName(x), fmtDue(x), isOverdue(x) ? t("yesW") : "", x.createdBy||"", x.approvedBy||"", x.repeat||""])));
+};
+$("csvSumBtn").onclick = () => {
+  const rt = reportTasks();
+  const rows = [[t("thAssignee"),t("thTotal"),t("todo"),t("inprogress"),t("review"),t("done"),t("overdueN"),t("thPct")]]
+    .concat(memberSummaryRows(rt));
+  rows.push([]);
+  rows.push([t("thProject"),t("thTotal"),t("done"),t("overdueN"),t("thPct")]);
+  projectSummaryRows(rt).forEach(r => rows.push(r));
+  dlCsv("rize-summary-report.csv", rows);
+};
+$("printBtn").onclick = () => window.print();
+["r_from","r_to","r_person","r_project","r_status"].forEach(id => $(id).addEventListener("input", renderReports));
+
 /* ---------- Nav & misc ---------- */
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
   b.classList.add("active");
-  ["dashboard","board","projects","calendar","team","activity"].forEach(v => $("view-" + v).style.display = (v === b.dataset.view) ? "" : "none");
+  ["dashboard","board","projects","calendar","team","activity","reports"].forEach(v => $("view-" + v).style.display = (v === b.dataset.view) ? "" : "none");
 });
 $("langBtn").onclick = () => { lang = (lang === "en") ? "ar" : "en"; localStorage.setItem("tt_lang", lang); applyLang(); };
 ["searchBox","filterPerson","filterProject","onlyMine"].forEach(id => $(id).addEventListener("input", renderBoard));
