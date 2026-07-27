@@ -456,7 +456,7 @@ function startData(){
         if(ch.type === "modified"){
           if(d.status === "done" && d.approvedBy && d.approvedBy !== me && d.assignee === me) notify(d.approvedBy + " " + t("nDone"), d.title);
           if(d.status === "inprogress" && d.returnedBy && d.assignee === me && d.returnedBy !== me) notify(t("nReturned"), d.title);
-          if(d.status === "review" && d.assignee !== me && canReview(d)) notify(t("nReview"), d.title);
+          if(d.status === "review" && d.assignee !== me && reviewersFor(d).some(m => m.name === me)) notify(t("nReview"), d.title);
         }
       });
     }
@@ -515,6 +515,13 @@ function canSee(x){
 function canReview(x){
   if(roleOf(myProfile()) === "head") return true;
   return subordinateNames().has(x.assignee);
+}
+function reviewersFor(x){
+  const mgrName = (memberByName(x.assignee)||{}).manager;
+  let rec = members.filter(m => m.name !== x.assignee &&
+    (m.name === mgrName || (m.team||[]).includes(x.assignee)));
+  if(!rec.length) rec = members.filter(m => (m.role||"member") === "head" && m.name !== x.assignee);
+  return rec;
 }
 function visibleTasks(){ return me ? tasks.filter(canSee) : []; }
 function visibleMembers(){
@@ -703,9 +710,7 @@ async function emailReviewers(x){
     if(!cfgDoc.exists) return;
     const cfg = cfgDoc.data();
     if(!cfg.serviceId || !cfg.templateId || !cfg.publicKey) return;
-    const mgrName = (memberByName(x.assignee)||{}).manager;
-    const recipients = members.filter(m => m.email && m.name !== me &&
-      (m.name === mgrName || (m.team||[]).includes(x.assignee) || (m.role||"member") === "head"));
+    const recipients = reviewersFor(x).filter(m => m.email && m.name !== me);
     const seen = new Set();
     const msg = me + " " + t("revMailMsg") + "\n\n• " + x.title +
       (x.date ? " — " + t("dueW") + " " + fmtDue(x) : "") +
