@@ -179,8 +179,12 @@ table.cal td.today{background:#e8f0fe}
       <div><label data-i="dueDate"></label><input type="date" id="f_date"></div>
       <div><label data-i="dueTime"></label><input type="time" id="f_time"></div>
     </div>
-    <label data-i="status"></label>
-    <select id="f_status"><option value="todo"></option><option value="inprogress"></option><option value="review"></option><option value="done"></option></select>
+    <div class="row">
+      <div><label data-i="status"></label>
+      <select id="f_status"><option value="todo"></option><option value="inprogress"></option><option value="review"></option><option value="done"></option></select></div>
+      <div><label data-i="repeatL"></label>
+      <select id="f_repeat"><option value=""></option><option value="daily"></option><option value="weekly"></option><option value="monthly"></option></select></div>
+    </div>
     <div id="taskExtras" style="display:none">
       <label data-i="attachments"></label>
       <div id="attachList"></div>
@@ -303,7 +307,8 @@ role:"Role",roleHead:"Head — sees everything",roleManager:"Manager — sees hi
 managerL:"Direct manager",noManager:"— None —",
 inviteTitle:"Invite a member",invName:"Full name...",invEmail:"Email...",invWa:"WhatsApp (optional)",invite:"Send invitation",invited:"✔ Invitation email sent to",invitedNoEmail:"Profile created (email not sent — check ✉️ digest settings) for",
 inviteMsg:"You are invited to join the Rize Tasks team workspace. Steps: 1) Open the link below. 2) Click 'New? Create account'. 3) Register using THIS email address so your profile links automatically. Your tasks will be waiting for you.",
-revMailMsg:"submitted a task for your review:",dueW:"due",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
+revMailMsg:"submitted a task for your review:",dueW:"due",
+repeatL:"Repeat",rNone:"No repeat",rDaily:"Daily",rWeekly:"Weekly",rMonthly:"Monthly",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
 emailSettings:"Daily email digest (EmailJS)",
 emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Emails are sent when the first member opens the app that day.",
 digestOn:"Enable daily digest",
@@ -332,7 +337,8 @@ role:"الصلاحية",roleHead:"رئيس — يرى كل شيء",roleManager:"
 managerL:"المدير المباشر",noManager:"— لا يوجد —",mTeam:"فريق المدير (يمكن اختيار عدة أعضاء)",
 inviteTitle:"دعوة عضو",invName:"الاسم الكامل...",invEmail:"البريد الإلكتروني...",invWa:"واتساب (اختياري)",invite:"إرسال الدعوة",invited:"✔ أُرسلت الدعوة بالبريد إلى",invitedNoEmail:"أُنشئ الملف (لم يُرسل البريد — راجع إعدادات ✉️) لـ",
 inviteMsg:"أنت مدعو للانضمام إلى مساحة عمل مهام Rize. الخطوات: 1) افتح الرابط أدناه. 2) اضغط 'New? Create account'. 3) سجّل بهذا البريد الإلكتروني نفسه ليرتبط ملفك تلقائيًا. مهامك بانتظارك.",
-revMailMsg:"قدّم مهمة لمراجعتك:",dueW:"الاستحقاق",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
+revMailMsg:"قدّم مهمة لمراجعتك:",dueW:"الاستحقاق",
+repeatL:"التكرار",rNone:"بدون تكرار",rDaily:"يومي",rWeekly:"أسبوعي",rMonthly:"شهري",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
 emailSettings:"الملخص اليومي بالبريد (EmailJS)",
 emailInfo:"كل صباح، يصل لكل عضو له بريد قائمة بمهامه غير المنجزة. تُرسل عندما يفتح أول عضو التطبيق ذلك اليوم.",
 digestOn:"تفعيل الملخص اليومي",
@@ -392,6 +398,8 @@ function applyLang(){
   $("a_go").textContent = signupMode ? t("signup") : t("login");
   const st = $("f_status").options;
   st[0].text = t("todo"); st[1].text = t("inprogress"); st[2].text = t("review"); st[3].text = t("done");
+  const rp = $("f_repeat").options;
+  rp[0].text = t("rNone"); rp[1].text = t("rDaily"); rp[2].text = t("rWeekly"); rp[3].text = t("rMonthly");
   const ro = $("m_role").options;
   if(ro.length >= 3){ ro[0].text = t("roleMember"); ro[1].text = t("roleManager"); ro[2].text = t("roleHead"); }
   $("notifBtn").textContent = (typeof Notification !== "undefined" && Notification.permission === "granted") ? t("notifOn") : t("notifOff");
@@ -585,7 +593,7 @@ function renderBoard(){
       return `
       <div class="task ${isOverdue(x) ? "overdue" : ""} ${x.returnedBy && st === "inprogress" ? "returned" : ""}" draggable="true" data-id="${x.id}">
         <b>${esc(x.title)}</b>
-        <div class="meta"><span>👤 ${esc(x.assignee||"—")}</span>${x.project ? `<span class="ptag">${esc(projName(x.project))}</span>` : ""}${x.date ? `<span>📅 ${fmtDue(x)}</span>` : ""}${nC ? `<span>💬 ${nC}</span>` : ""}${nF ? `<span>📎 ${nF}</span>` : ""}</div>
+        <div class="meta"><span>👤 ${esc(x.assignee||"—")}</span>${x.project ? `<span class="ptag">${esc(projName(x.project))}</span>` : ""}${x.date ? `<span>📅 ${fmtDue(x)}</span>` : ""}${x.repeat ? `<span>🔁</span>` : ""}${nC ? `<span>💬 ${nC}</span>` : ""}${nF ? `<span>📎 ${nF}</span>` : ""}</div>
         ${st === "review" ? `<div class="muted" style="font-size:11px">${t("waiting")} ${esc((memberByName(x.assignee)||{}).manager || "…")}</div>` : ""}
         ${x.returnedBy && st === "inprogress" ? `<span class="rtag">${t("returnedTag")}: ${esc(x.returnedBy)}</span>` : ""}
         ${st === "done" && x.approvedBy ? `<div class="muted" style="font-size:11px">✔ ${t("approvedByL")} ${esc(x.approvedBy)}</div>` : ""}
@@ -696,6 +704,7 @@ window.setStatus = (id, st) => {
       upd.status = "review"; upd.submittedBy = me;
     } else {
       upd.completedBy = x.assignee; upd.approvedBy = me; upd.returnedBy = "";
+      spawnNext(x);
     }
   }
   if(st === "review"){ upd.submittedBy = me; }
@@ -731,7 +740,21 @@ window.approveTask = id => {
   const x = tasks.find(z => z.id === id); if(!x) return;
   db.collection("tasks").doc(id).update({status:"done", completedBy:x.assignee, approvedBy:me, returnedBy:""});
   logAct(`${t("actApproved")} "${x.title}"`);
+  spawnNext(x);
 };
+function nextDate(ds, repeat){
+  const d = ds ? new Date(ds + "T12:00:00") : new Date();
+  if(repeat === "daily") d.setDate(d.getDate() + 1);
+  if(repeat === "weekly") d.setDate(d.getDate() + 7);
+  if(repeat === "monthly") d.setMonth(d.getMonth() + 1);
+  return d.toLocaleDateString("sv");
+}
+function spawnNext(x){
+  if(!x.repeat) return;
+  db.collection("tasks").add({title:x.title, desc:x.desc||"", assignee:x.assignee, project:x.project||"",
+    date:nextDate(x.date, x.repeat), time:x.time||"", status:"todo", createdBy:x.createdBy||me, repeat:x.repeat,
+    comments:[], files:[], createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+}
 window.returnTask = id => {
   const x = tasks.find(z => z.id === id); if(!x) return;
   const reason = prompt(t("amendReason")) || "";
@@ -756,6 +779,7 @@ window.openTask = (id, presetDate) => {
   $("f_date").value = x ? (x.date||"") : (presetDate||"");
   $("f_time").value = x ? (x.time||"") : "";
   $("f_status").value = x ? (x.status||"todo") : "todo";
+  $("f_repeat").value = x ? (x.repeat||"") : "";
   $("f_comment").value = ""; $("f_link").value = ""; $("f_file").value = "";
   if(id) renderTaskExtras();
   $("taskOverlay").classList.add("show");
@@ -800,7 +824,7 @@ $("saveTaskBtn").onclick = () => {
   const title = $("f_title").value.trim();
   if(!title) return;
   const data = {title, desc:$("f_desc").value.trim(), assignee:$("f_assignee").value, project:$("f_project").value,
-    date:$("f_date").value, time:$("f_time").value};
+    date:$("f_date").value, time:$("f_time").value, repeat:$("f_repeat").value};
   const newStatus = $("f_status").value;
   if(editingId){
     const x = tasks.find(z => z.id === editingId);
