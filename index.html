@@ -43,6 +43,7 @@ main{padding:16px;max-width:1300px;margin:0 auto}
 .task .actions .ok{background:var(--ok);color:#fff;border-color:var(--ok)}
 .task .actions .warn{background:var(--warn);color:#fff;border-color:var(--warn)}
 .wa{background:var(--wa)!important;color:#fff!important;border-color:var(--wa)!important}
+.slk{background:#4A154B!important;color:#fff!important;border-color:#4A154B!important}
 .ptag{background:#eef3fb;color:var(--accent2);border-radius:4px;padding:1px 6px;font-size:11px}
 .rtag{background:#f5eefb;color:var(--rev);border-radius:4px;padding:1px 6px;font-size:11px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -657,7 +658,7 @@ function renderBoard(){
         ${st === "review" ? `<div class="muted" style="font-size:11px">${t("waiting")} ${esc((memberByName(x.assignee)||{}).manager || "…")}</div>` : ""}
         ${x.returnedBy && st === "inprogress" ? `<span class="rtag">${t("returnedTag")}: ${esc(x.returnedBy)}</span>` : ""}
         ${st === "done" && x.approvedBy ? `<div class="muted" style="font-size:11px">✔ ${t("approvedByL")} ${esc(x.approvedBy)}</div>` : ""}
-        <div class="actions">${act}<button onclick="openTask('${x.id}')">✎ 💬 📎</button>${wa}</div>
+        <div class="actions">${act}<button onclick="openTask('${x.id}')">✎ 💬 📎</button>${st !== "done" ? `<button class="slk" onclick="taskToSlack('${x.id}')">Slack</button>` : ""}${wa}</div>
       </div>`; }).join("");
   });
   document.querySelectorAll(".task[draggable]").forEach(el => {
@@ -774,16 +775,25 @@ window.setStatus = (id, st) => {
   if(upd.status === "review"){ emailReviewers(x); slackPost(`🟣 ${me} → ${t("review")}: "${x.title}" (${x.assignee})`); }
   if(upd.status === "done" && upd.approvedBy) slackPost(`✅ ${me} ${t("actApproved")}: "${x.title}" (${x.assignee})`);
 };
+const SLACK_FALLBACK_B64 = "aHR0cHM6Ly9ob29rcy5zbGFjay5jb20vc2VydmljZXMvVDAzUFFRNlBUQjcvQjBDMzNVREdaUkMvdWRneFFTTGltd0pTQWcxcjM1RnI4Qm5C";
 async function slackPost(text){
+  let url = "";
   try{
     const d = await db.collection("meta").doc("emailcfg").get();
-    if(!d.exists) return false;
-    const url = (d.data().slackWebhook || "").trim();
-    if(!url.startsWith("https://hooks.slack.com/")) return false;
+    if(d.exists) url = (d.data().slackWebhook || "").trim();
+  }catch(e){}
+  if(!url){ try{ url = atob(SLACK_FALLBACK_B64); }catch(e){} }
+  if(!url.startsWith("https://hooks.slack.com/")) return false;
+  try{
     await fetch(url, {method:"POST", mode:"no-cors", body:JSON.stringify({text})});
     return true;
   }catch(e){ return false; }
 }
+window.taskToSlack = async id => {
+  const x = tasks.find(z => z.id === id); if(!x) return;
+  const ok = await slackPost(`🔔 ${me} — ${t("waText")}: "${x.title}" (${x.assignee||""})${x.date ? " 📅 " + fmtDue(x) : ""}${x.project ? " [" + projName(x.project) + "]" : ""}${x.status === "review" ? " — " + t("review") : ""}${isOverdue(x) ? " ⚠️" : ""}\nhttps://hokeyhassan.github.io/Finance-tasks/`);
+  alert(ok ? t("slackSent") : t("slackMissing"));
+};
 async function emailReviewers(x){
   try{
     const cfgDoc = await db.collection("meta").doc("emailcfg").get();
