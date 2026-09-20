@@ -259,6 +259,7 @@ table.rep tr:nth-child(even) td{background:#f7f9ff}
     <label data-i="memberName"></label><input id="m_name">
     <label data-i="memberEmail"></label><input id="m_email" type="email" placeholder="name@example.com">
     <label data-i="memberWhatsapp"></label><input id="m_wa" placeholder="+201001234567">
+    <label data-i="slackIdL"></label><input id="m_slack" placeholder="U081ZAB0AN8">
     <label data-i="role"></label>
     <select id="m_role"><option value="member"></option><option value="manager"></option><option value="head"></option></select>
     <label data-i="managerL"></label>
@@ -280,6 +281,7 @@ table.rep tr:nth-child(even) td{background:#f7f9ff}
     <label>Template ID</label><input id="e_template" placeholder="template_xxxxxxx">
     <label>Public Key</label><input id="e_key" placeholder="XXXXXXXXXXXXXXX">
     <label data-i="slackL"></label><input id="e_slack" placeholder="https://hooks.slack.com/services/...">
+    <label data-i="slackTokL"></label><input id="e_slackToken" placeholder="xoxb-...">
     <div class="checkitem" style="margin-top:10px"><input type="checkbox" id="e_enabled"><span data-i="digestOn"></span></div>
     <div class="note" data-i="emailNote"></div>
     <div class="foot">
@@ -340,7 +342,9 @@ repeatL:"Repeat",rNone:"No repeat",rDaily:"Daily",rWeekly:"Weekly",rMonthly:"Mon
 reports:"Reports",fromL:"From",toL:"To",allStatus:"All statuses",exportCsv:"⬇ Export Excel (CSV)",exportSum:"⬇ Summary CSV",printR:"🖨 Print / PDF",
 thTitle:"Title",thAssignee:"Assignee",thProject:"Project",thStatus:"Status",thDue:"Due",thCreatedBy:"Created by",thApprovedBy:"Approved by",thOverdue:"Overdue",thTotal:"Total",thPct:"Completion %",yesW:"Yes",
 archive:"Archived",restoreT:"↩ Restore",archHint:"Done tasks from previous months are archived here automatically at the start of each month. They stay available for review and in Reports.",
-slackL:"Slack Webhook URL (optional)",pushSlack:"📤 Push to Slack",slackSent:"Sent to Slack ✔",slackMissing:"Add the Slack Webhook URL in the ✉️ settings first.",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
+slackL:"Slack Webhook URL (optional)",pushSlack:"📤 Push to Slack",slackSent:"Sent to Slack ✔",slackMissing:"Add the Slack Webhook URL in the ✉️ settings first.",
+slackIdL:"Slack Member ID (to @mention in #rize-tasks; Slack profile → ⋮ → Copy member ID)",
+slackTokL:"Slack Bot Token (xoxb-…, enables personal DMs)",mTeam:"Manager's team (can select several members)",teamHint:"New teammates appear here automatically after they create their account. Then set their role and manager.",
 emailSettings:"Daily email digest (EmailJS)",
 emailInfo:"Each morning, every member with an email gets a list of their unfinished tasks. Emails are sent when the first member opens the app that day.",
 digestOn:"Enable daily digest",
@@ -374,7 +378,9 @@ repeatL:"التكرار",rNone:"بدون تكرار",rDaily:"يومي",rWeekly:"
 reports:"التقارير",fromL:"من",toL:"إلى",allStatus:"كل الحالات",exportCsv:"⬇ تصدير إكسل (CSV)",exportSum:"⬇ ملخص CSV",printR:"🖨 طباعة / PDF",
 thTitle:"العنوان",thAssignee:"المسند إليه",thProject:"المشروع",thStatus:"الحالة",thDue:"الاستحقاق",thCreatedBy:"أنشأها",thApprovedBy:"اعتمدها",thOverdue:"متأخرة",thTotal:"الإجمالي",thPct:"نسبة الإنجاز",yesW:"نعم",
 archive:"الأرشيف",restoreT:"↩ استعادة",archHint:"المهام المنجزة من الأشهر السابقة تُؤرشف هنا تلقائيًا بداية كل شهر، وتبقى متاحة للمراجعة وفي التقارير.",
-slackL:"رابط Slack Webhook (اختياري)",pushSlack:"📤 إرسال إلى Slack",slackSent:"أُرسل إلى Slack ✔",slackMissing:"أضف رابط Slack Webhook في إعدادات ✉️ أولًا.",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
+slackL:"رابط Slack Webhook (اختياري)",pushSlack:"📤 إرسال إلى Slack",slackSent:"أُرسل إلى Slack ✔",slackMissing:"أضف رابط Slack Webhook في إعدادات ✉️ أولًا.",
+slackIdL:"معرّف العضو في Slack (للإشارة إليه في #rize-tasks؛ من ملفه في Slack ← ⋮ ← Copy member ID)",
+slackTokL:"رمز بوت Slack (يبدأ بـ xoxb، لتفعيل الرسائل المباشرة)",teamHint:"الأعضاء الجدد يظهرون هنا تلقائيًا بعد إنشاء حساباتهم. بعدها حدد الصلاحية والمدير.",
 emailSettings:"الملخص اليومي بالبريد (EmailJS)",
 emailInfo:"كل صباح، يصل لكل عضو له بريد قائمة بمهامه غير المنجزة. تُرسل عندما يفتح أول عضو التطبيق ذلك اليوم.",
 digestOn:"تفعيل الملخص اليومي",
@@ -772,8 +778,19 @@ window.setStatus = (id, st) => {
   if(st === "inprogress" && x.status === "review"){ /* dragging back = return */ }
   db.collection("tasks").doc(id).update(upd);
   logAct(`${t("actMoved")} "${x.title}" ${t("to")} ${t(upd.status)}`);
-  if(upd.status === "review"){ emailReviewers(x); slackPost(`🟣 ${me} → ${t("review")}: "${x.title}" (${x.assignee})`); }
-  if(upd.status === "done" && upd.approvedBy) slackPost(`✅ ${me} ${t("actApproved")}: "${x.title}" (${x.assignee})`);
+  if(upd.status === "review"){
+    emailReviewers(x);
+    const revs = reviewersFor(x);
+    const tags = revs.map(m => slackTag(m.name)).join(" ");
+    const msg = `🟣 ${me} → ${t("review")}: "${x.title}" (${x.assignee})${tags ? " — " + tags : ""}`;
+    slackPost(msg);
+    revs.forEach(m => slackDmName(m.name, msg));
+  }
+  if(upd.status === "done" && upd.approvedBy){
+    const msg = `✅ ${me} ${t("actApproved")}: "${x.title}" (${slackTag(x.assignee)})`;
+    slackPost(msg);
+    slackDmName(x.assignee, msg);
+  }
 };
 const SLACK_FALLBACK_B64 = "aHR0cHM6Ly9ob29rcy5zbGFjay5jb20vc2VydmljZXMvVDAzUFFRNlBUQjcvQjBDMzNVREdaUkMvdWRneFFTTGltd0pTQWcxcjM1RnI4Qm5C";
 async function slackPost(text){
@@ -789,9 +806,42 @@ async function slackPost(text){
     return true;
   }catch(e){ return false; }
 }
+let cfgCache = null, cfgAt = 0;
+async function getCfgCached(){
+  if(cfgCache && Date.now() - cfgAt < 60000) return cfgCache;
+  try{ const d = await db.collection("meta").doc("emailcfg").get(); cfgCache = d.exists ? d.data() : {}; }catch(e){ cfgCache = cfgCache || {}; }
+  cfgAt = Date.now();
+  return cfgCache;
+}
+function slackTag(name){ const m = memberByName(name); return (m && m.slackId) ? "<@" + m.slackId + ">" : name; }
+async function slackApi(method, params, tok){
+  const r = await fetch("https://slack.com/api/" + method, {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams(Object.assign({}, params, {token:tok}))});
+  return r.json();
+}
+async function slackDmName(name, text){
+  try{
+    const cfg = await getCfgCached();
+    const tok = (cfg.slackToken || "").trim();
+    if(!tok) return false;
+    const m = memberByName(name);
+    if(!m) return false;
+    let uid = m.slackId;
+    if(!uid && m.email){
+      const u = await slackApi("users.lookupByEmail", {email:m.email}, tok);
+      if(u.ok) uid = u.user.id;
+    }
+    if(!uid) return false;
+    const res = await slackApi("chat.postMessage", {channel:uid, text}, tok);
+    return !!res.ok;
+  }catch(e){ return false; }
+}
 window.taskToSlack = async id => {
   const x = tasks.find(z => z.id === id); if(!x) return;
-  const ok = await slackPost(`🔔 ${me} — ${t("waText")}: "${x.title}" (${x.assignee||""})${x.date ? " 📅 " + fmtDue(x) : ""}${x.project ? " [" + projName(x.project) + "]" : ""}${x.status === "review" ? " — " + t("review") : ""}${isOverdue(x) ? " ⚠️" : ""}\nhttps://hokeyhassan.github.io/Finance-tasks/`);
+  const msg = `🔔 ${me} — ${t("waText")}: "${x.title}" (${slackTag(x.assignee||"")})${x.date ? " 📅 " + fmtDue(x) : ""}${x.project ? " [" + projName(x.project) + "]" : ""}${x.status === "review" ? " — " + t("review") : ""}${isOverdue(x) ? " ⚠️" : ""}\nhttps://hokeyhassan.github.io/Finance-tasks/`;
+  const ok = await slackPost(msg);
+  slackDmName(x.assignee, msg);
   alert(ok ? t("slackSent") : t("slackMissing"));
 };
 async function emailReviewers(x){
@@ -821,7 +871,9 @@ window.approveTask = id => {
   const x = tasks.find(z => z.id === id); if(!x) return;
   db.collection("tasks").doc(id).update({status:"done", completedBy:x.assignee, approvedBy:me, returnedBy:""});
   logAct(`${t("actApproved")} "${x.title}"`);
-  slackPost(`✅ ${me} ${t("actApproved")}: "${x.title}" (${x.assignee})`);
+  const apMsg = `✅ ${me} ${t("actApproved")}: "${x.title}" (${slackTag(x.assignee)})`;
+  slackPost(apMsg);
+  slackDmName(x.assignee, apMsg);
   spawnNext(x);
 };
 function nextDate(ds, repeat){
@@ -844,7 +896,9 @@ window.returnTask = id => {
   db.collection("tasks").doc(id).update(upd);
   if(reason) addCommentTo(id, "↩ " + reason);
   logAct(`${t("actReturned")} "${x.title}"`);
-  slackPost(`↩ ${me} ${t("actReturned")}: "${x.title}" (${x.assignee})${reason ? " — " + reason : ""}`);
+  const rtMsg = `↩ ${me} ${t("actReturned")}: "${x.title}" (${slackTag(x.assignee)})${reason ? " — " + reason : ""}`;
+  slackPost(rtMsg);
+  slackDmName(x.assignee, rtMsg);
 };
 
 /* ---------- Task CRUD ---------- */
@@ -925,7 +979,9 @@ $("saveTaskBtn").onclick = () => {
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     db.collection("tasks").add(data);
     logAct(`${t("actCreated")} "${title}" → ${data.assignee}`);
-    slackPost(`➕ ${me}: "${title}" → ${data.assignee}${data.date ? " (📅 " + data.date + ")" : ""}`);
+    const crMsg = `➕ ${me}: "${title}" → ${slackTag(data.assignee)}${data.date ? " (📅 " + data.date + ")" : ""}`;
+    slackPost(crMsg);
+    if(data.assignee !== me) slackDmName(data.assignee, `➕ ${t("nAssigned")}: "${title}"${data.date ? " (📅 " + data.date + ")" : ""} — ${me}\nhttps://hokeyhassan.github.io/Finance-tasks/`);
   }
   editingId = null;
   $("taskOverlay").classList.remove("show");
@@ -975,6 +1031,7 @@ window.openMem = id => {
   $("m_name").value = m ? m.name : "";
   $("m_email").value = m ? (m.email||"") : "";
   $("m_wa").value = m ? (m.whatsapp||"") : "";
+  $("m_slack").value = m ? (m.slackId||"") : "";
   $("m_role").value = (m && m.role) ? m.role : "member";
   $("m_manager").innerHTML = `<option value="">${t("noManager")}</option>` +
     members.filter(x => x.id !== id).map(x => `<option>${esc(x.name)}</option>`).join("");
@@ -1001,7 +1058,7 @@ $("saveMemBtn").onclick = () => {
   const name = $("m_name").value.trim();
   if(!name || !editingMemId) return;
   const old = members.find(z => z.id === editingMemId);
-  const upd = {name, email:$("m_email").value.trim().toLowerCase(), whatsapp:$("m_wa").value.trim()};
+  const upd = {name, email:$("m_email").value.trim().toLowerCase(), whatsapp:$("m_wa").value.trim(), slackId:$("m_slack").value.trim()};
   if(roleOf(myProfile()) === "head"){
     upd.role = $("m_role").value;
     upd.manager = $("m_manager").value;
@@ -1078,6 +1135,7 @@ $("emailCfgBtn").onclick = async () => {
   $("e_template").value = c.templateId || "";
   $("e_key").value = c.publicKey || "";
   $("e_slack").value = c.slackWebhook || "";
+  $("e_slackToken").value = c.slackToken || "";
   $("e_enabled").checked = !!c.enabled;
   $("emailOverlay").classList.add("show");
 };
@@ -1085,7 +1143,8 @@ $("cancelEmailBtn").onclick = () => $("emailOverlay").classList.remove("show");
 $("saveEmailBtn").onclick = () => {
   db.collection("meta").doc("emailcfg").set({
     serviceId:$("e_service").value.trim(), templateId:$("e_template").value.trim(),
-    publicKey:$("e_key").value.trim(), slackWebhook:$("e_slack").value.trim(), enabled:$("e_enabled").checked});
+    publicKey:$("e_key").value.trim(), slackWebhook:$("e_slack").value.trim(), slackToken:$("e_slackToken").value.trim(), enabled:$("e_enabled").checked});
+  cfgCache = null;
   $("emailOverlay").classList.remove("show");
 };
 function maybeDigest(){
