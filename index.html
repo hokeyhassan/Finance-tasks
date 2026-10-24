@@ -140,6 +140,7 @@ table.rep tr:nth-child(even) td{background:#f7f9ff}
       <select id="filterPerson"></select>
       <select id="filterProject"></select>
       <label style="font-size:13px"><input type="checkbox" id="onlyMine"> <span data-i="myTasks"></span></label>
+      <button class="btn gray sm" id="dedupeBtn" style="display:none"></button>
     </div>
     <div class="cols">
       <div class="col" data-status="todo"><h3><span data-i="todo"></span><span class="muted" id="cnt-todo"></span></h3><div class="drop" id="list-todo"></div></div>
@@ -350,7 +351,7 @@ addMember:"Add",removeM:"Remove",completion:"completion",edit:"Edit",
 memberName:"Name",memberEmail:"Email",memberWhatsapp:"WhatsApp number (with country code)",editMember:"Member details",
 role:"Role",roleHead:"Head — sees everything",roleManager:"Manager — sees his team",roleMember:"Member — sees own tasks only",
 managerL:"Direct manager",noManager:"— None —",
-priorityL:"Priority",high:"High",medium:"Medium",low:"Low",inviteNewOpt:"➕ Invite new member…",invNameL:"New member name",invEmailL:"New member email",actInvited:"invited",
+priorityL:"Priority",high:"High",medium:"Medium",low:"Low",inviteNewOpt:"➕ Invite new member…",invNameL:"New member name",invEmailL:"New member email",actInvited:"invited",dedupe:"🧹 Remove duplicates",noDupes:"No duplicate tasks found",confirmDedupe:"Delete these duplicate tasks? One original of each task is kept.",dedupeAct:"removed duplicate tasks",dedupeDone:"Duplicates removed",
 inviteTitle:"Invite a member",invName:"Full name...",invEmail:"Email...",invWa:"WhatsApp (optional)",invite:"Send invitation",invited:"✔ Invitation email sent to",invitedNoEmail:"Profile created (email not sent — check ✉️ digest settings) for",
 inviteMsg:"You are invited to join the Rize Tasks team workspace. Steps: 1) Open the link below. 2) Click 'New? Create account'. 3) Register using THIS email address so your profile links automatically. Your tasks will be waiting for you.",
 revMailMsg:"submitted a task for your review:",dueW:"due",
@@ -387,7 +388,7 @@ addMember:"إضافة",removeM:"إزالة",completion:"إنجاز",edit:"تعد
 memberName:"الاسم",memberEmail:"البريد الإلكتروني",memberWhatsapp:"رقم واتساب (مع كود الدولة)",editMember:"بيانات العضو",
 role:"الصلاحية",roleHead:"رئيس — يرى كل شيء",roleManager:"مدير — يرى فريقه",roleMember:"عضو — يرى مهامه فقط",
 managerL:"المدير المباشر",noManager:"— لا يوجد —",
-priorityL:"الأولوية",high:"عالية",medium:"متوسطة",low:"منخفضة",inviteNewOpt:"➕ دعوة عضو جديد…",invNameL:"اسم العضو الجديد",invEmailL:"بريد العضو الجديد",actInvited:"دعا",mTeam:"فريق المدير (يمكن اختيار عدة أعضاء)",
+priorityL:"الأولوية",high:"عالية",medium:"متوسطة",low:"منخفضة",inviteNewOpt:"➕ دعوة عضو جديد…",invNameL:"اسم العضو الجديد",invEmailL:"بريد العضو الجديد",actInvited:"دعا",dedupe:"🧹 حذف المهام المكررة",noDupes:"لا توجد مهام مكررة",confirmDedupe:"حذف هذه المهام المكررة؟ سيتم الاحتفاظ بنسخة واحدة من كل مهمة.",dedupeAct:"حذف مهام مكررة",dedupeDone:"تم حذف المكررات",mTeam:"فريق المدير (يمكن اختيار عدة أعضاء)",
 inviteTitle:"دعوة عضو",invName:"الاسم الكامل...",invEmail:"البريد الإلكتروني...",invWa:"واتساب (اختياري)",invite:"إرسال الدعوة",invited:"✔ أُرسلت الدعوة بالبريد إلى",invitedNoEmail:"أُنشئ الملف (لم يُرسل البريد — راجع إعدادات ✉️) لـ",
 inviteMsg:"أنت مدعو للانضمام إلى مساحة عمل مهام Rize. الخطوات: 1) افتح الرابط أدناه. 2) اضغط 'New? Create account'. 3) سجّل بهذا البريد الإلكتروني نفسه ليرتبط ملفك تلقائيًا. مهامك بانتظارك.",
 revMailMsg:"قدّم مهمة لمراجعتك:",dueW:"الاستحقاق",
@@ -433,6 +434,7 @@ function applyLang(){
   document.querySelectorAll("nav button").forEach(b => b.textContent = t(b.dataset.view));
   $("addTaskBtn").textContent = t("addTask");
   $("addProjBtn").textContent = t("addProject");
+  if($("dedupeBtn")) $("dedupeBtn").textContent = t("dedupe");
   $("searchBox").placeholder = t("search");
   $("saveTaskBtn").textContent = t("save");
   $("cancelTaskBtn").textContent = t("cancel");
@@ -658,6 +660,7 @@ function renderBoard(){
   const fp = $("filterPerson").value;
   const fpr = $("filterProject").value;
   const mine = $("onlyMine").checked;
+  $("dedupeBtn").style.display = (roleOf(myProfile()) === "head") ? "" : "none";
   ["todo","inprogress","review","done"].forEach(st => {
     const list = visibleTasks().filter(x => (x.status||"todo") === st)
       .filter(x => !q || (x.title||"").toLowerCase().includes(q) || (x.desc||"").toLowerCase().includes(q))
@@ -976,6 +979,26 @@ $("f_file").onchange = () => {
   };
   r.readAsDataURL(f);
 };
+$("dedupeBtn").onclick = () => {
+const groups = {};
+tasks.forEach(x => {
+const k = [x.title||"", x.assignee||"", x.date||"", x.project||"", x.status||"todo"].join("|");
+(groups[k] = groups[k] || []).push(x);
+});
+const cnt = x => (x.comments||[]).length + (x.files||[]).length;
+const ms = x => (x.createdAt && x.createdAt.toMillis) ? x.createdAt.toMillis() : 0;
+const extra = [];
+Object.values(groups).forEach(g => {
+if(g.length < 2) return;
+g.sort((a,b) => (cnt(b) - cnt(a)) || (ms(a) - ms(b)));
+g.slice(1).forEach(x => extra.push(x));
+});
+if(!extra.length){ alert(t("noDupes")); return; }
+if(!confirm(t("confirmDedupe") + " (" + extra.length + ")")) return;
+extra.forEach(x => db.collection("tasks").doc(x.id).delete());
+logAct(t("dedupeAct") + " (" + extra.length + ")");
+alert(t("dedupeDone") + ": " + extra.length);
+};
 $("addTaskBtn").onclick = () => openTask(null);
 $("cancelTaskBtn").onclick = () => { editingId = null; $("taskOverlay").classList.remove("show"); };
 $("saveTaskBtn").onclick = async () => {
@@ -1245,7 +1268,7 @@ $("importFile").onchange = e => {
   r.onload = () => {
     try{
       const d = JSON.parse(r.result);
-      (d.tasks||[]).forEach(x => { const {id, ...rest} = x; db.collection("tasks").add(rest); });
+      (d.tasks||[]).forEach(x => { const {id, ...rest} = x; if(!tasks.some(tk => tk.title === rest.title && tk.assignee === rest.assignee && (tk.date||"") === (rest.date||""))){ db.collection("tasks").add(rest); } });
       (d.members||[]).forEach(x => {
         if(!members.some(m => m.name === x.name)){ const {id, ...rest} = x; db.collection("members").add(rest); }
       });
